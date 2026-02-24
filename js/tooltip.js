@@ -122,7 +122,7 @@ var TalentTooltip = (function () {
   }
 
   function fetchTooltip(spellId, callback) {
-    var url = WOWHEAD_TOOLTIP_API + spellId + '?dataEnv=1&locale=3';
+    var url = WOWHEAD_TOOLTIP_API + spellId + '?dataEnv=1&locale=8';
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
