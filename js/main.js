@@ -9,7 +9,6 @@
   var currentMode = null;
   var currentString = null;
 
-  // Background images per specId
   var specBackgrounds = {
     265: 'images/bg/warlock-affliction.jpg',
     266: 'images/bg/warlock-demonology.jpg',
@@ -219,7 +218,7 @@
       r.heroSelections
     );
 
-    // Hero icon above hero tree
+    // Render hero icon above hero tree
     TalentTreeRenderer.renderHeroIcon(r.treeData, r.selectedSubTreeId);
 
     console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
