@@ -1,91 +1,240 @@
+/* ===== Reset & Base ===== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  background: #0a0a12;
-  color: #e0d8c8;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+html, body {
+  width: 100%;
+  height: 100%;
+  background: #0a0a1a;
+  color: #ccc;
+  font-family: 'Segoe UI', Arial, sans-serif;
   overflow-x: hidden;
-  min-height: 100vh;
 }
 
 #app {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px;
+  position: relative;
+  width: 100%;
   min-height: 100vh;
 }
 
-/* ===== ERROR ===== */
+/* ===== Spec Background ===== */
+.spec-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ===== Error ===== */
 .error-msg {
-  color: #ff6b6b;
-  font-size: 14px;
+  position: relative;
+  z-index: 10;
+  color: #ff4444;
   text-align: center;
-  min-height: 0;
-  padding: 0;
+  padding: 10px;
+  font-size: 14px;
+}
+.error-msg:empty {
+  display: none;
 }
 
-.error-msg:not(:empty) {
-  padding: 12px 20px;
-  background: rgba(255, 60, 60, 0.1);
-  border: 1px solid rgba(255, 60, 60, 0.3);
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-
-/* ===== TREES CONTAINER ===== */
+/* ===== Trees Container ===== */
 .trees-container {
+  position: relative;
+  z-index: 1;
   display: flex;
-  gap: 12px;
   justify-content: center;
   align-items: flex-start;
-  width: 100%;
-  max-width: 1500px;
+  gap: 12px;
+  padding: 20px 10px;
+  min-height: calc(100vh - 60px);
 }
 
-/* Single tree view — hide all, show only .visible */
 .trees-container.single-view .tree-panel {
   display: none;
 }
-
 .trees-container.single-view .tree-panel.visible {
-  display: block;
-  flex: 0 1 800px;
-}
-
-.tree-panel {
-  flex: 1;
-  min-width: 0;
-  background: #0e0e1e;
-  border: 1px solid #1e1e38;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.tree-viewport {
-  overflow: auto;
-  padding: 8px;
-  min-height: 200px;
   display: flex;
+}
+
+/* ===== Tree Panel ===== */
+.tree-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 500px;
+  min-width: 300px;
+}
+
+.tree-panel[data-tree="hero"] {
+  max-width: 360px;
+  min-width: 240px;
+}
+
+/* ===== Tree Header ===== */
+.tree-header {
+  display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  margin-bottom: 4px;
+  min-height: 36px;
+}
+
+.tree-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffd100;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  text-transform: capitalize;
+}
+
+.tree-header-points {
+  font-size: 13px;
+  color: #aaa;
+  font-weight: 400;
+}
+
+/* ===== Tree Viewport ===== */
+.tree-viewport {
+  width: 100%;
+  position: relative;
+  background: rgba(10, 10, 30, 0.65);
+  border: 1px solid rgba(255, 209, 0, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+
+.tree-panel[data-tree="hero"] .tree-viewport {
+  background: rgba(15, 10, 40, 0.75);
+  border-color: rgba(150, 120, 255, 0.25);
 }
 
 .tree-svg {
+  width: 100%;
+  height: auto;
   display: block;
-  max-width: 100%;
 }
 
-/* ===== BOTTOM BAR ===== */
+/* ===== SVG Node Styles ===== */
+
+/* Connection lines */
+.tree-svg .connection-line {
+  stroke: #665522;
+  stroke-width: 2;
+  fill: none;
+}
+.tree-svg .connection-line.active {
+  stroke: #ffb300;
+  stroke-width: 2.5;
+}
+
+/* Node groups */
+.tree-svg .talent-node {
+  cursor: default;
+}
+
+/* Icon clipping shapes */
+.tree-svg .node-border-square {
+  fill: none;
+  stroke: #555;
+  stroke-width: 2;
+}
+.tree-svg .node-border-square.selected {
+  stroke: #ffd100;
+  stroke-width: 2.5;
+}
+.tree-svg .node-border-square.free {
+  stroke: #4a9;
+  stroke-width: 2;
+}
+.tree-svg .node-border-square.unselected {
+  stroke: #444;
+  stroke-width: 1.5;
+}
+
+.tree-svg .node-border-circle {
+  fill: none;
+  stroke: #555;
+  stroke-width: 2;
+}
+.tree-svg .node-border-circle.selected {
+  stroke: #ffd100;
+  stroke-width: 2.5;
+}
+.tree-svg .node-border-circle.free {
+  stroke: #4a9;
+  stroke-width: 2;
+}
+.tree-svg .node-border-circle.unselected {
+  stroke: #444;
+  stroke-width: 1.5;
+}
+
+.tree-svg .node-border-choice {
+  fill: none;
+  stroke: #555;
+  stroke-width: 2;
+}
+.tree-svg .node-border-choice.selected {
+  stroke: #ffd100;
+  stroke-width: 2.5;
+}
+.tree-svg .node-border-choice.unselected {
+  stroke: #444;
+  stroke-width: 1.5;
+}
+
+/* Rank text */
+.tree-svg .rank-text {
+  fill: #fff;
+  font-size: 11px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: auto;
+  pointer-events: none;
+  text-shadow: 0 1px 2px #000;
+}
+
+.tree-svg .rank-bg {
+  fill: rgba(0, 0, 0, 0.7);
+  rx: 3;
+}
+
+/* Unselected nodes dim */
+.tree-svg .talent-node.unselected .node-icon {
+  opacity: 0.35;
+  filter: grayscale(100%);
+}
+
+/* ===== Bottom Bar ===== */
 .bottom-bar {
   display: none;
-  margin-top: 16px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 10px;
+  background: rgba(10, 10, 30, 0.9);
+  border-top: 1px solid rgba(255, 209, 0, 0.15);
   text-align: center;
+  backdrop-filter: blur(8px);
 }
-
 .bottom-bar.visible {
   display: block;
 }
@@ -93,213 +242,33 @@ body {
 .copy-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 28px;
-  background: #1a1a32;
-  border: 1px solid #3a3a5c;
-  border-radius: 8px;
-  color: #b0a890;
+  gap: 6px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #2a2a4a, #1a1a3a);
+  border: 1px solid rgba(255, 209, 0, 0.3);
+  border-radius: 6px;
+  color: #ffd100;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .copy-btn:hover {
-  background: #222244;
-  border-color: #f0b232;
-  color: #f0b232;
+  background: linear-gradient(135deg, #3a3a5a, #2a2a4a);
+  border-color: #ffd100;
 }
-
-.copy-btn:active {
-  transform: scale(0.97);
-}
-
 .copy-btn.copied {
-  border-color: #43d243;
-  color: #43d243;
+  border-color: #4a9;
+  color: #4a9;
 }
 
-/* ===== SVG NODE STYLES ===== */
-
-/* Connections */
-.connection-line {
-  stroke: #2a2a4a;
-  stroke-width: 2;
-  fill: none;
-  transition: stroke 0.3s;
-}
-
-.connection-line.active {
-  stroke: #f0b232;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 0 3px rgba(240, 178, 50, 0.25));
-}
-
-/* Node group */
-.talent-node {
-  cursor: default;
-}
-
-/* Node background fill */
-.node-bg-fill {
-  fill: #13132a;
-  transition: fill 0.3s;
-}
-
-/* Node border */
-.node-border-shape {
-  fill: none;
-  stroke: #3a3a5c;
-  stroke-width: 2.5;
-  transition: stroke 0.3s, filter 0.3s;
-}
-
-/* Icon */
-.node-icon-img {
-  transition: opacity 0.3s, filter 0.3s;
-}
-
-/* INACTIVE */
-.talent-node.inactive .node-bg-fill {
-  fill: #0e0e1e;
-}
-
-.talent-node.inactive .node-border-shape {
-  stroke: #2a2a4a;
-}
-
-.talent-node.inactive .node-icon-img {
-  opacity: 0.3;
-  filter: grayscale(100%) brightness(0.6);
-}
-
-/* ACTIVE */
-.talent-node.active .node-border-shape {
-  stroke: #f0b232;
-  filter: drop-shadow(0 0 5px rgba(240, 178, 50, 0.35));
-}
-
-.talent-node.active .node-icon-img {
-  opacity: 1;
-  filter: none;
-}
-
-/* MAXED */
-.talent-node.maxed .node-border-shape {
-  stroke: #43d243;
-  filter: drop-shadow(0 0 5px rgba(67, 210, 67, 0.3));
-}
-
-/* CHOICE NODE */
-.talent-node.choice-node .node-border-shape {
-  stroke: #7b5ccc;
-}
-
-.talent-node.choice-node.active .node-border-shape {
-  stroke: #f0b232;
-}
-
-/* Rank badge */
-.rank-bg {
-  fill: #0e0e1e;
-  stroke: #3a3a5c;
-  stroke-width: 1.5;
-}
-
-.talent-node.active .rank-bg {
-  stroke: #f0b232;
-}
-
-.talent-node.maxed .rank-bg {
-  stroke: #43d243;
-}
-
-.rank-text {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  text-anchor: middle;
-  dominant-baseline: central;
-  fill: #555;
-}
-
-.talent-node.active .rank-text {
-  fill: #f0b232;
-}
-
-.talent-node.maxed .rank-text {
-  fill: #43d243;
-}
-
-/* ===== TOOLTIP ===== */
-.tooltip {
-  display: none;
-  position: fixed;
-  z-index: 9999;
-  background: linear-gradient(180deg, #1a1a36 0%, #12122a 100%);
-  border: 1px solid #4a4a7c;
-  border-radius: 10px;
-  padding: 14px;
-  max-width: 340px;
-  min-width: 220px;
-  pointer-events: none;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-}
-
-.tooltip.visible {
-  display: block;
-}
-
-.tt-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.tt-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  border: 2px solid #f0b232;
-  flex-shrink: 0;
-}
-
-.tt-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #f0b232;
-  line-height: 1.2;
-}
-
-.tt-rank {
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.tt-type {
-  font-size: 11px;
-  color: #6a6a8a;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.tt-spell-id {
-  font-size: 10px;
-  color: #4a4a6a;
-  margin-top: 6px;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1100px) {
+/* ===== Responsive ===== */
+@media (max-width: 1000px) {
   .trees-container {
     flex-direction: column;
     align-items: center;
   }
   .tree-panel {
-    width: 100%;
-    max-width: 600px;
+    max-width: 95%;
   }
 }
