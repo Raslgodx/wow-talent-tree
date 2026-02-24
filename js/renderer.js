@@ -293,7 +293,7 @@ var TalentTreeRenderer = (function () {
     var atlas = activeEntry.atlasMemberName;
     if (!atlas) return;
 
-    var imgSrc = 'images/hero/' + atlas + '.png';
+    var imgSrc = 'images/hero/' + atlas + '.webp';
 
     if (!heroPanel) return;
 
