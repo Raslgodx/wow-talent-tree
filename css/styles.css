@@ -319,4 +319,10 @@ html, body {
     width: 70%;
     max-width: 300px;
   }
+  @media (max-width: 1240px) {
+  .copy-bar,
+  .copy-bar.visible {
+    display: none !important;
+  }
+}
 }
