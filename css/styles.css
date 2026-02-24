@@ -306,17 +306,7 @@ html, body {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 1100px) {
-  .tree-panel[data-tree="class"],
-  .tree-panel[data-tree="spec"] {
-    width: 360px;
-  }
-  .tree-panel-hero {
-    width: 240px;
-  }
-}
-
-@media (max-width: 900px) {
+@media (max-width: 1198px) {
   .trees-container {
     flex-direction: column;
     align-items: center;
