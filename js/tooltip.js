@@ -1,69 +1,45 @@
 /**
- * Tooltip system for talent nodes
+ * Tooltip system — uses Wowhead tooltips for spell info
  */
 
 var TalentTooltip = (function () {
 
-  var tooltipEl = null;
+  var wowheadLoaded = false;
 
   function init() {
-    tooltipEl = document.getElementById('tooltip');
-    if (!tooltipEl) return;
+    // Load Wowhead tooltip script
+    loadWowheadScript();
 
-    // Track mouse position
-    document.addEventListener('mousemove', function (e) {
-      if (!tooltipEl.classList.contains('visible')) return;
-
-      var x = e.clientX + 16;
-      var y = e.clientY + 16;
-
-      // Keep on screen
-      var rect = tooltipEl.getBoundingClientRect();
-      var winW = window.innerWidth;
-      var winH = window.innerHeight;
-
-      if (x + rect.width > winW - 10) {
-        x = e.clientX - rect.width - 16;
-      }
-      if (y + rect.height > winH - 10) {
-        y = e.clientY - rect.height - 16;
-      }
-      if (x < 5) x = 5;
-      if (y < 5) y = 5;
-
-      tooltipEl.style.left = x + 'px';
-      tooltipEl.style.top = y + 'px';
-    });
-
-    // Hover on nodes (event delegation)
+    // Add hover listeners via event delegation
     document.addEventListener('mouseover', function (e) {
       var node = findNodeGroup(e.target);
       if (node) {
-        show(node);
+        onNodeHover(node);
       }
     });
+  }
 
-    document.addEventListener('mouseout', function (e) {
-      var node = findNodeGroup(e.target);
-      if (node) {
-        var related = findNodeGroup(e.relatedTarget);
-        if (related !== node) {
-          hide();
-        }
-      }
-    });
+  function loadWowheadScript() {
+    // Set config before loading script
+    if (!window.whTooltips) {
+      window.whTooltips = {
+        colorLinks: true,
+        renameLinks: false,
+        iconSize: 'small'
+      };
+    }
 
-    // Hide on scroll
-    document.addEventListener('scroll', function () {
-      hide();
-    }, true);
+    var script = document.createElement('script');
+    script.src = 'https://wow.zamimg.com/js/tooltips.js';
+    script.onload = function () {
+      wowheadLoaded = true;
+      console.log('Wowhead tooltips loaded');
+    };
+    document.head.appendChild(script);
   }
 
   function findNodeGroup(el) {
     if (!el) return null;
-    if (el.classList && el.classList.contains('talent-node')) return el;
-    if (el.closest) return el.closest('.talent-node');
-    // Fallback for SVG elements
     var current = el;
     while (current && current !== document) {
       if (current.classList && current.classList.contains('talent-node')) {
@@ -74,86 +50,59 @@ var TalentTooltip = (function () {
     return null;
   }
 
-  function show(nodeEl) {
-    if (!tooltipEl) return;
+  function onNodeHover(nodeEl) {
+    var spellId = nodeEl.getAttribute('data-spell-id');
+    if (!spellId || spellId === '0' || spellId === '') return;
 
-    var name = nodeEl.getAttribute('data-name') || 'Unknown';
-    var icon = nodeEl.getAttribute('data-icon') || '';
-    var type = nodeEl.getAttribute('data-type') || '';
-    var rank = parseInt(nodeEl.getAttribute('data-rank')) || 0;
-    var maxRank = parseInt(nodeEl.getAttribute('data-max-rank')) || 1;
-    var spellId = nodeEl.getAttribute('data-spell-id') || '';
-    var isActive = nodeEl.classList.contains('active');
-    var isMaxed = nodeEl.classList.contains('maxed');
-    var isChoice = nodeEl.classList.contains('choice-node');
+    // Check if we already added a wowhead link to this node
+    if (nodeEl.getAttribute('data-wh-attached') === 'true') return;
+    nodeEl.setAttribute('data-wh-attached', 'true');
 
-    // Icon
-    var iconSrc = icon
-      ? 'https://wow.zamimg.com/images/wow/icons/large/' + icon + '.jpg'
-      : '';
+    // Create an invisible anchor that Wowhead will attach tooltip to
+    // We use foreignObject to embed HTML inside SVG
+    var fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    var r = 19; // NODE_RADIUS
+    var cx = 0, cy = 0;
 
-    // Rank display
-    var rankStr = '';
-    var rankColor = '#555';
-    if (maxRank > 1) {
-      rankStr = 'Rank ' + rank + ' / ' + maxRank;
-      if (isMaxed) rankColor = '#43d243';
-      else if (isActive) rankColor = '#f0b232';
-    } else {
-      if (isActive) {
-        rankStr = 'Learned';
-        rankColor = '#43d243';
+    // Get node center from the background shape
+    var bgShape = nodeEl.querySelector('.node-bg-fill');
+    if (bgShape) {
+      if (bgShape.tagName === 'rect') {
+        cx = parseFloat(bgShape.getAttribute('x')) + parseFloat(bgShape.getAttribute('width')) / 2;
+        cy = parseFloat(bgShape.getAttribute('y')) + parseFloat(bgShape.getAttribute('height')) / 2;
       } else {
-        rankStr = 'Not learned';
-        rankColor = '#666';
+        // For path (octagon), parse from data attribute or use bounding box
+        var bbox = bgShape.getBBox();
+        cx = bbox.x + bbox.width / 2;
+        cy = bbox.y + bbox.height / 2;
       }
     }
 
-    // Type label
-    var typeLabel = '';
-    if (type === 'active') typeLabel = 'Active Ability';
-    else if (type === 'passive') typeLabel = 'Passive';
-    if (isChoice) typeLabel = 'Choice Talent' + (typeLabel ? ' · ' + typeLabel : '');
+    fo.setAttribute('x', cx - r);
+    fo.setAttribute('y', cy - r);
+    fo.setAttribute('width', r * 2);
+    fo.setAttribute('height', r * 2);
 
-    // Build tooltip HTML
-    var html = '<div class="tt-header">';
-    if (iconSrc) {
-      html += '<img class="tt-icon" src="' + iconSrc + '" alt="" onerror="this.style.display=\'none\'">';
+    var link = document.createElement('a');
+    link.href = 'https://www.wowhead.com/spell=' + spellId;
+    link.setAttribute('data-wowhead', 'spell=' + spellId);
+    link.style.display = 'block';
+    link.style.width = '100%';
+    link.style.height = '100%';
+    link.style.opacity = '0';
+    link.target = '_blank';
+
+    fo.appendChild(link);
+    nodeEl.appendChild(fo);
+
+    // Tell Wowhead to rescan for new tooltips
+    if (wowheadLoaded && window.$WowheadPower && window.$WowheadPower.refreshLinks) {
+      window.$WowheadPower.refreshLinks();
     }
-    html += '<div>';
-    html += '<div class="tt-name">' + escapeHtml(name) + '</div>';
-    html += '<div class="tt-rank" style="color:' + rankColor + '">' + rankStr + '</div>';
-    html += '</div>';
-    html += '</div>';
-
-    if (typeLabel) {
-      html += '<div class="tt-type">' + typeLabel + '</div>';
-    }
-
-    if (spellId) {
-      html += '<div class="tt-spell-id">Spell ID: ' + spellId + '</div>';
-    }
-
-    tooltipEl.innerHTML = html;
-    tooltipEl.classList.add('visible');
-  }
-
-  function hide() {
-    if (tooltipEl) {
-      tooltipEl.classList.remove('visible');
-    }
-  }
-
-  function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
   }
 
   return {
-    init: init,
-    show: show,
-    hide: hide
+    init: init
   };
 
 })();
