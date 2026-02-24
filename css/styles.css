@@ -37,27 +37,13 @@ html, body {
   pointer-events: none;
   opacity: 0.35;
 }
-/* ===== Hero Tree Icon ===== */
-.hero-tree-icon {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 0 auto 8px;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 3px solid #c8a84e;
-  overflow: hidden;
-  background: #1a1a2e;
-  box-shadow: 0 0 12px rgba(200, 168, 78, 0.5);
+
+@media (max-width: 1550px) {
+  .spec-background {
+    display: none;
+  }
 }
 
-.hero-tree-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
 /* ===== Error ===== */
 .error-msg {
   position: relative;
@@ -104,90 +90,117 @@ html, body {
   align-self: center;
 }
 
-/* ===== SVG Node Styles ===== */
+/* ===== Hero Tree Icon ===== */
+.hero-tree-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid #c8a84e;
+  overflow: hidden;
+  background: #1a1a2e;
+  box-shadow: 0 0 12px rgba(200, 168, 78, 0.5);
+}
 
-.tree-svg .connection-line {
+.hero-tree-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* ===== SVG Connection Lines ===== */
+.talent-connection {
   stroke: #3a3520;
   stroke-width: 1.5;
   fill: none;
 }
-.tree-svg .connection-line.active {
+
+.talent-connection.connection-active {
   stroke: #ffb300;
   stroke-width: 2;
 }
 
-.tree-svg .talent-node {
+/* ===== SVG Node Shapes ===== */
+.talent-node {
   cursor: default;
 }
 
-.tree-svg .node-border-square {
-  fill: none;
+/* Square (active talents) */
+.node-shape.node-square {
+  fill: #111;
   stroke: #555;
   stroke-width: 1.5;
 }
-.tree-svg .node-border-square.selected {
+
+.node-selected .node-shape.node-square {
   stroke: #ffd100;
   stroke-width: 2;
 }
-.tree-svg .node-border-square.free {
-  stroke: #4a9;
-  stroke-width: 1.5;
-}
-.tree-svg .node-border-square.unselected {
+
+.node-unselected .node-shape.node-square {
   stroke: #333;
   stroke-width: 1;
+  fill: #0a0a0a;
 }
 
-.tree-svg .node-border-circle {
-  fill: none;
+/* Circle (passive talents) */
+.node-shape.node-circle {
+  fill: #111;
   stroke: #555;
   stroke-width: 1.5;
 }
-.tree-svg .node-border-circle.selected {
+
+.node-selected .node-shape.node-circle {
   stroke: #ffd100;
   stroke-width: 2;
 }
-.tree-svg .node-border-circle.free {
-  stroke: #4a9;
-  stroke-width: 1.5;
-}
-.tree-svg .node-border-circle.unselected {
+
+.node-unselected .node-shape.node-circle {
   stroke: #333;
   stroke-width: 1;
+  fill: #0a0a0a;
 }
 
-.tree-svg .node-border-octagon {
-  fill: none;
+/* Octagon (choice talents) */
+.node-shape.node-octagon {
+  fill: #111;
   stroke: #555;
   stroke-width: 1.5;
 }
-.tree-svg .node-border-octagon.selected {
+
+.node-selected .node-shape.node-octagon {
   stroke: #ffd100;
   stroke-width: 2;
 }
-.tree-svg .node-border-octagon.unselected {
+
+.node-unselected .node-shape.node-octagon {
   stroke: #333;
   stroke-width: 1;
+  fill: #0a0a0a;
 }
 
-.tree-svg .rank-text {
+/* Unselected icon dim */
+.node-unselected .node-icon {
+  opacity: 0.35;
+  filter: grayscale(100%);
+}
+
+/* Rank badge */
+.rank-badge {
   fill: #fff;
-  font-size: 9px;
+  font-size: 10px;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-weight: 700;
-  text-anchor: middle;
-  dominant-baseline: auto;
   pointer-events: none;
-}
-
-.tree-svg .rank-bg {
-  fill: rgba(0, 0, 0, 0.75);
-  rx: 2;
-}
-
-.tree-svg .talent-node.unselected .node-icon {
-  opacity: 0.3;
-  filter: grayscale(100%);
+  paint-order: stroke;
+  stroke: #000;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* ===== Copy Bar ===== */
@@ -312,10 +325,5 @@ html, body {
   .tree-panel-hero {
     width: 70%;
     max-width: 300px;
-  }
-}
-@media (max-width: 1550px) {
-  .spec-background {
-    display: none;
   }
 }
