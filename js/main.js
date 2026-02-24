@@ -219,6 +219,9 @@
       r.heroSelections
     );
 
+    // Hero icon above hero tree
+    TalentTreeRenderer.renderHeroIcon(r.treeData, r.selectedSubTreeId);
+
     console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
     console.log('[Render] Spec selected:', Object.keys(r.specSelections).length);
     console.log('[Render] Hero nodes shown:', heroNodes.length, 'selected:', Object.keys(r.heroSelections).length);
