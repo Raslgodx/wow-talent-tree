@@ -17,9 +17,13 @@ var TreeRenderer = (function () {
 
   var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
 
-  function getIconUrl(iconName) {
+   function getIconUrl(iconName) {
     if (!iconName) return '';
-    return WOWHEAD_ICON_BASE + iconName.toLowerCase() + '.jpg';
+    // Fix known icon name mismatches between talents.json and Wowhead CDN
+    var name = iconName.toLowerCase();
+    // Double underscore → underscore + hyphen (e.g. warlock__bloodstone → warlock_-bloodstone)
+    name = name.replace(/__/g, '_-');
+    return WOWHEAD_ICON_BASE + name + '.jpg';
   }
 
   function octagonPoints(cx, cy, r) {
