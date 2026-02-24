@@ -301,16 +301,17 @@ var TreeRenderer = (function () {
       // Tooltip link — wrap group in <a> with Wowhead /ru/ URL
       // Prevent click navigation, show tooltip only
       if (spellId) {
-        var link = svgEl('a');
-        link.setAttributeNS('http://www.w3.org/1999/xlink', 'href', getTooltipUrl(spellId));
-        link.setAttribute('target', '_blank');
-        link.setAttribute('data-wowhead', 'spell=' + spellId);
-        link.setAttribute('class', 'talent-link');
+        var link = svgEl('a', {
+          'data-spell-id': spellId,
+          'class': 'talent-link',
+          'href': 'javascript:void(0)'
+        });
 
-        // Prevent click navigation
+        // Prevent any navigation
         link.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
+          return false;
         });
 
         link.appendChild(g);
