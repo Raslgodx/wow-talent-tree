@@ -75,6 +75,7 @@
       if (filtered.length > 0) return filtered;
     }
 
+    // Fallback: use heroTreeData nodeIds
     if (result.heroTreeData && result.heroTreeData.nodeIds) {
       var idSet = {};
       for (var j = 0; j < result.heroTreeData.nodeIds.length; j++) {
@@ -164,10 +165,12 @@
       r.heroSelections
     );
 
+    // Debug output
     console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
     console.log('[Render] Spec selected:', Object.keys(r.specSelections).length);
     console.log('[Render] Hero nodes shown:', heroNodes.length, 'selected:', Object.keys(r.heroSelections).length);
 
+    // Refresh Wowhead tooltips
     setTimeout(function () {
       if (window.$WowheadPower && window.$WowheadPower.refreshLinks) {
         window.$WowheadPower.refreshLinks();
@@ -239,13 +242,14 @@
   }
 
   function init() {
-    // Load both data files, then start
+    // Load both data files in sequence, then start the app
     loadTalentData(function (err) {
       if (err) {
         showError(err);
         return;
       }
 
+      // Load node order data (from Wowhead), then proceed
       TalentDecoder.loadNodeOrder(function (err2) {
         if (err2) {
           showError(err2);
