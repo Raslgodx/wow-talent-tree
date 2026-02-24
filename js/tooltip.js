@@ -1,7 +1,6 @@
 /**
- * Tooltip system for talent tree
- * Fetches tooltip HTML from Wowhead and shows on hover
- * Uses Russian locale (/ru/)
+ * Tooltip system — fetches from Wowhead API, shows under cursor
+ * Uses position: fixed to avoid container offset issues
  */
 
 var TalentTooltip = (function () {
@@ -9,8 +8,8 @@ var TalentTooltip = (function () {
   var tooltipEl = null;
   var tooltipCache = {};
   var currentSpellId = null;
-  var hideTimeout = null;
   var WOWHEAD_TOOLTIP_API = 'https://nether.wowhead.com/tooltip/spell/';
+  var LOCALE = 8; // Will be auto-detected or set manually
 
   function init() {
     tooltipEl = document.getElementById('tooltip');
@@ -21,247 +20,187 @@ var TalentTooltip = (function () {
       document.body.appendChild(tooltipEl);
     }
 
-    // Listen for mouse events on talent links in SVG
-    document.addEventListener('mouseover', function (e) {
-      var link = findTalentLink(e.target);
-      if (link) {
-        var spellId = link.getAttribute('data-spell-id');
-        if (spellId) {
-          clearTimeout(hideTimeout);
-          showTooltip(parseInt(spellId), e);
-        }
-      }
-    });
+    // Detect correct locale for Russian
+    detectLocale();
 
-    document.addEventListener('mousemove', function (e) {
-      if (tooltipEl.style.display === 'block') {
-        positionTooltip(e);
-      }
-    });
+    // Mouse events
+    document.addEventListener('mouseover', onMouseOver, true);
+    document.addEventListener('mousemove', onMouseMove, true);
+    document.addEventListener('mouseout', onMouseOut, true);
 
-    document.addEventListener('mouseout', function (e) {
-      var link = findTalentLink(e.target);
-      if (link) {
-        hideTimeout = setTimeout(function () {
-          hideTooltip();
-        }, 100);
-      }
-    });
-
-    // Prevent tooltip from hiding when hovering over tooltip itself
-    tooltipEl.addEventListener('mouseenter', function () {
-      clearTimeout(hideTimeout);
-    });
-
-    tooltipEl.addEventListener('mouseleave', function () {
-      hideTooltip();
-    });
-
-    // Touch support
+    // Prevent click on talent links
     document.addEventListener('click', function (e) {
       var link = findTalentLink(e.target);
       if (link) {
         e.preventDefault();
         e.stopPropagation();
+      }
+    }, true);
+
+    // Touch: tap to show, tap elsewhere to hide
+    document.addEventListener('touchstart', function (e) {
+      var link = findTalentLink(e.target);
+      if (link) {
+        e.preventDefault();
         var spellId = link.getAttribute('data-spell-id');
         if (spellId) {
-          if (currentSpellId === parseInt(spellId) && tooltipEl.style.display === 'block') {
-            hideTooltip();
-          } else {
-            showTooltip(parseInt(spellId), e);
-          }
+          var touch = e.touches[0];
+          showTooltip(parseInt(spellId), touch.clientX, touch.clientY);
         }
       } else if (!tooltipEl.contains(e.target)) {
         hideTooltip();
       }
-    });
+    }, { passive: false });
 
-    console.log('[Tooltip] Initialized with Wowhead /ru/ tooltips');
+    console.log('[Tooltip] Initialized');
+  }
+
+  function detectLocale() {
+    // Try locale 8 first, check if it returns Russian
+    fetch(WOWHEAD_TOOLTIP_API + '445465?dataEnv=1&locale=8')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.tooltip && /[\u0400-\u04FF]/.test(d.tooltip)) {
+          LOCALE = 8;
+          console.log('[Tooltip] Locale 8 = Russian ✓');
+        } else {
+          // Try other locales
+          tryLocales([7, 9, 10, 11, 12, 13, 14, 15, 6, 5, 4, 3, 2, 1]);
+        }
+      })
+      .catch(function () {
+        LOCALE = 8;
+      });
+  }
+
+  function tryLocales(list) {
+    if (list.length === 0) {
+      console.log('[Tooltip] Could not find Russian locale, using 8');
+      return;
+    }
+    var loc = list[0];
+    fetch(WOWHEAD_TOOLTIP_API + '445465?dataEnv=1&locale=' + loc)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.tooltip && /[\u0400-\u04FF]/.test(d.tooltip)) {
+          LOCALE = loc;
+          console.log('[Tooltip] Found Russian at locale=' + loc);
+        } else {
+          tryLocales(list.slice(1));
+        }
+      })
+      .catch(function () {
+        tryLocales(list.slice(1));
+      });
+  }
+
+  function onMouseOver(e) {
+    var link = findTalentLink(e.target);
+    if (!link) return;
+    var spellId = link.getAttribute('data-spell-id');
+    if (spellId) {
+      showTooltip(parseInt(spellId), e.clientX, e.clientY);
+    }
+  }
+
+  function onMouseMove(e) {
+    if (tooltipEl.style.display !== 'block') return;
+    positionTooltip(e.clientX, e.clientY);
+  }
+
+  function onMouseOut(e) {
+    var link = findTalentLink(e.target);
+    if (link) {
+      // Check if moving to another element within same link
+      var related = e.relatedTarget;
+      if (related && link.contains(related)) return;
+      hideTooltip();
+    }
   }
 
   function findTalentLink(el) {
     var node = el;
-    var maxDepth = 10;
-    while (node && maxDepth > 0) {
+    var depth = 0;
+    while (node && depth < 15) {
       if (node.getAttribute && node.getAttribute('data-spell-id')) {
         return node;
       }
-      // Check for SVG <a> parent with data-spell-id
-      if (node.tagName === 'a' || node.tagName === 'A' ||
-          (node.namespaceURI && node.namespaceURI.indexOf('svg') !== -1 && node.tagName === 'a')) {
-        if (node.getAttribute('data-spell-id')) {
-          return node;
-        }
-      }
-      node = node.parentNode || node.parentElement;
-      maxDepth--;
+      node = node.parentNode;
+      depth++;
     }
     return null;
   }
 
-  function showTooltip(spellId, event) {
+  function showTooltip(spellId, clientX, clientY) {
     currentSpellId = spellId;
 
     if (tooltipCache[spellId]) {
-      renderTooltip(tooltipCache[spellId], event);
+      renderTooltip(tooltipCache[spellId]);
+      positionTooltip(clientX, clientY);
       return;
     }
 
-    // Show loading state
+    // Loading
     tooltipEl.innerHTML = '<div class="wh-tooltip-loading">Загрузка...</div>';
     tooltipEl.style.display = 'block';
-    positionTooltip(event);
+    positionTooltip(clientX, clientY);
 
-    // Fetch from Wowhead
-    fetchTooltip(spellId, function (data) {
-      if (currentSpellId === spellId) {
-        tooltipCache[spellId] = data;
-        renderTooltip(data, event);
-      }
-    });
-  }
+    var url = WOWHEAD_TOOLTIP_API + spellId + '?dataEnv=1&locale=' + LOCALE;
 
-  function fetchTooltip(spellId, callback) {
-    var url = WOWHEAD_TOOLTIP_API + spellId + '?dataEnv=1&locale=7';
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200) {
-          try {
-            var data = JSON.parse(xhr.responseText);
-            callback(data);
-          } catch (e) {
-            // Fallback: try JSONP approach
-            fetchTooltipJsonp(spellId, callback);
-          }
-        } else {
-          fetchTooltipJsonp(spellId, callback);
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (currentSpellId === spellId) {
+          tooltipCache[spellId] = data;
+          renderTooltip(data);
         }
-      }
-    };
-    xhr.onerror = function () {
-      fetchTooltipJsonp(spellId, callback);
-    };
-
-    try {
-      xhr.send();
-    } catch (e) {
-      fetchTooltipJsonp(spellId, callback);
-    }
+      })
+      .catch(function () {
+        if (currentSpellId === spellId) {
+          tooltipEl.innerHTML = '<div class="wh-tooltip-simple"><b>Spell #' + spellId + '</b><br>' +
+            '<a href="https://www.wowhead.com/ru/spell=' + spellId + '" target="_blank" style="color:#4488ff;font-size:12px;">Wowhead</a></div>';
+        }
+      });
   }
 
-  function fetchTooltipJsonp(spellId, callback) {
-    // Use iframe approach to get tooltip from Wowhead
-    // Create a hidden link and use Wowhead's own tooltip system
-    var tempLink = document.createElement('a');
-    tempLink.href = 'https://www.wowhead.com/ru/spell=' + spellId;
-    tempLink.dataset.wowhead = 'spell=' + spellId + '&domain=ru';
-    tempLink.style.position = 'absolute';
-    tempLink.style.left = '-9999px';
-    tempLink.style.top = '-9999px';
-    tempLink.textContent = 'spell';
-    document.body.appendChild(tempLink);
-
-    // Try to trigger Wowhead tooltip system
-    if (window.$WowheadPower && window.$WowheadPower.refreshLinks) {
-      window.$WowheadPower.refreshLinks();
-    }
-
-    // Wait a moment then try to capture tooltip
-    setTimeout(function () {
-      // Look for Wowhead's tooltip element
-      var whTooltip = document.getElementById('wowhead-tooltip-0') ||
-                      document.querySelector('.wowhead-tooltip') ||
-                      document.querySelector('#wowhead-tooltip');
-
-      if (whTooltip && whTooltip.innerHTML) {
-        callback({ tooltip: whTooltip.innerHTML });
-      } else {
-        // Fallback: simple text tooltip
-        callback({
-          tooltip: null,
-          name: 'Spell #' + spellId,
-          fallback: true
-        });
-      }
-
-      document.body.removeChild(tempLink);
-    }, 300);
-  }
-
-  function renderTooltip(data, event) {
+  function renderTooltip(data) {
     if (!data) {
       hideTooltip();
       return;
     }
 
     var html = '';
-
     if (data.tooltip) {
       html = data.tooltip;
     } else if (data.name) {
-      html = '<div class="wh-tooltip-simple">' +
-        '<b>' + escapeHtml(data.name) + '</b>' +
-        (data.fallback ? '<br><a href="https://www.wowhead.com/ru/spell=' + currentSpellId +
-          '" target="_blank" style="color:#4488ff;font-size:12px;">Открыть на Wowhead</a>' : '') +
-        '</div>';
+      html = '<div class="wh-tooltip-simple"><b>' + escapeHtml(data.name) + '</b></div>';
     }
 
     if (html) {
       tooltipEl.innerHTML = html;
       tooltipEl.style.display = 'block';
-      positionTooltip(event);
-
-      // Load Wowhead CSS for proper styling
-      loadWowheadTooltipCss();
     }
   }
 
-  var wowheadCssLoaded = false;
-  function loadWowheadTooltipCss() {
-    if (wowheadCssLoaded) return;
-    wowheadCssLoaded = true;
+  function positionTooltip(clientX, clientY) {
+    // Position using fixed coordinates — directly under cursor
+    var tipW = tooltipEl.offsetWidth || 300;
+    var tipH = tooltipEl.offsetHeight || 100;
+    var winW = window.innerWidth;
+    var winH = window.innerHeight;
 
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://wow.zamimg.com/css/universal.css';
-    document.head.appendChild(link);
-  }
+    var left = clientX + 12;
+    var top = clientY + 16;
 
-  function positionTooltip(event) {
-    var x, y;
-
-    if (event && event.clientX !== undefined) {
-      x = event.clientX;
-      y = event.clientY;
-    } else if (event && event.touches && event.touches[0]) {
-      x = event.touches[0].clientX;
-      y = event.touches[0].clientY;
-    } else {
-      return;
+    // Keep on screen — flip if needed
+    if (left + tipW > winW - 8) {
+      left = clientX - tipW - 12;
     }
-
-    var tooltipWidth = tooltipEl.offsetWidth || 300;
-    var tooltipHeight = tooltipEl.offsetHeight || 200;
-    var windowWidth = window.innerWidth;
-    var windowHeight = window.innerHeight;
-    var scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-    var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-
-    var left = x + scrollX + 15;
-    var top = y + scrollY + 15;
-
-    // Keep tooltip on screen
-    if (left + tooltipWidth > windowWidth + scrollX - 10) {
-      left = x + scrollX - tooltipWidth - 15;
+    if (top + tipH > winH - 8) {
+      top = clientY - tipH - 16;
     }
-    if (top + tooltipHeight > windowHeight + scrollY - 10) {
-      top = y + scrollY - tooltipHeight - 15;
-    }
-    if (left < scrollX + 5) left = scrollX + 5;
-    if (top < scrollY + 5) top = scrollY + 5;
+    if (left < 4) left = 4;
+    if (top < 4) top = 4;
 
     tooltipEl.style.left = left + 'px';
     tooltipEl.style.top = top + 'px';
