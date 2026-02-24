@@ -76,18 +76,12 @@ html, body {
 
 .tree-panel[data-tree="class"],
 .tree-panel[data-tree="spec"] {
-  width: 540px;
+  width: 440px;
 }
 
 .tree-panel-hero {
-  width: 200px;
+  width: 160px;
   align-self: center;
-}
-
-.tree-svg {
-  width: 100%;
-  height: auto;
-  display: block;
 }
 
 /* ===== SVG Node Styles ===== */
@@ -285,12 +279,13 @@ html, body {
 }
 
 @media (max-width: 1100px) {
+ @media (max-width: 1100px) {
   .tree-panel[data-tree="class"],
   .tree-panel[data-tree="spec"] {
-    width: 380px;
+    width: 360px;
   }
   .tree-panel-hero {
-    width: 150px;
+    width: 130px;
   }
 }
 
@@ -302,10 +297,10 @@ html, body {
   .tree-panel[data-tree="class"],
   .tree-panel[data-tree="spec"] {
     width: 95%;
-    max-width: 540px;
+    max-width: 440px;
   }
   .tree-panel-hero {
     width: 60%;
-    max-width: 260px;
+    max-width: 200px;
   }
 }
