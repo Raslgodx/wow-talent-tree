@@ -6,14 +6,14 @@
 
 var TreeRenderer = (function () {
 
-  var ICON_SIZE = 40;
-  var NODE_GAP_X = 60;
-  var NODE_GAP_Y = 64;
-  var PADDING_X = 36;
-  var PADDING_TOP = 24;
-  var PADDING_BOTTOM = 36;
-  var RANK_OFFSET_Y = 22;
-  var OCTAGON_SIZE = 24; // "radius" for octagon
+  var ICON_SIZE = 32;
+  var NODE_GAP_X = 48;
+  var NODE_GAP_Y = 52;
+  var PADDING_X = 24;
+  var PADDING_TOP = 16;
+  var PADDING_BOTTOM = 28;
+  var RANK_OFFSET_Y = 18;
+  var OCTAGON_SIZE = 19;
 
   var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
 
@@ -22,9 +22,6 @@ var TreeRenderer = (function () {
     return WOWHEAD_ICON_BASE + iconName.toLowerCase() + '.jpg';
   }
 
-  /**
-   * Generate octagon points centered at (cx, cy) with given radius
-   */
   function octagonPoints(cx, cy, r) {
     var pts = [];
     for (var i = 0; i < 8; i++) {
@@ -37,9 +34,6 @@ var TreeRenderer = (function () {
     return pts.join(' ');
   }
 
-  /**
-   * Normalize node positions to grid coordinates
-   */
   function normalizePositions(nodes) {
     if (!nodes || nodes.length === 0) return { items: [], cols: 0, rows: 0 };
 
@@ -123,7 +117,6 @@ var TreeRenderer = (function () {
     var defs = svgEl('defs');
     svgElement.appendChild(defs);
 
-    // Position lookup
     var posMap = {};
     for (var p = 0; p < items.length; p++) {
       var it = items[p];
@@ -185,13 +178,11 @@ var TreeRenderer = (function () {
       var halfIcon = ICON_SIZE / 2;
 
       if (isChoice) {
-        // Octagon clip
         var octClip = svgEl('polygon', {
           points: octagonPoints(pos.cx, pos.cy, OCTAGON_SIZE)
         });
         clip.appendChild(octClip);
       } else if (isSingle && maxRanks === 1) {
-        // Circle clip
         var circleClip = svgEl('circle', {
           cx: pos.cx,
           cy: pos.cy,
@@ -199,14 +190,13 @@ var TreeRenderer = (function () {
         });
         clip.appendChild(circleClip);
       } else {
-        // Square clip
         var rectClip = svgEl('rect', {
           x: pos.cx - halfIcon,
           y: pos.cy - halfIcon,
           width: ICON_SIZE,
           height: ICON_SIZE,
-          rx: 4,
-          ry: 4
+          rx: 3,
+          ry: 3
         });
         clip.appendChild(rectClip);
       }
@@ -251,8 +241,8 @@ var TreeRenderer = (function () {
           y: pos.cy - halfIcon,
           width: ICON_SIZE,
           height: ICON_SIZE,
-          rx: 4,
-          ry: 4,
+          rx: 3,
+          ry: 3,
           'class': 'node-border-square ' + sqState
         });
         g.appendChild(borderSq);
@@ -264,10 +254,10 @@ var TreeRenderer = (function () {
         var textY = pos.cy + halfIcon + RANK_OFFSET_Y - 6;
 
         var rankBg = svgEl('rect', {
-          x: pos.cx - 16,
-          y: textY - 10,
-          width: 32,
-          height: 14,
+          x: pos.cx - 14,
+          y: textY - 9,
+          width: 28,
+          height: 12,
           'class': 'rank-bg'
         });
         g.appendChild(rankBg);
