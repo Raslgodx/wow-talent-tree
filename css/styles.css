@@ -14,12 +14,13 @@ html, body {
   overflow-x: hidden;
 }
 
-/* ===== Main Container 1700px ===== */
+/* ===== Main Container ===== */
 .main-container {
   position: relative;
   max-width: 1700px;
   margin: 0 auto;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 /* ===== Spec Background ===== */
@@ -29,7 +30,7 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-size: contain;
+  background-size: 100% auto;
   background-position: center top;
   background-repeat: no-repeat;
   z-index: 0;
@@ -57,7 +58,7 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 20px 10px 0;
+  padding: 12px 4px 0;
 }
 
 .trees-container.single-view .tree-panel {
@@ -74,11 +75,14 @@ html, body {
 
 .tree-panel[data-tree="class"],
 .tree-panel[data-tree="spec"] {
-  width: 560px;
+  width: 44%;
+  max-width: 700px;
 }
 
 .tree-panel-hero {
-  width: 320px;
+  width: 12%;
+  max-width: 260px;
+  min-width: 180px;
   align-self: center;
 }
 
@@ -92,12 +96,12 @@ html, body {
 
 .tree-svg .connection-line {
   stroke: #3a3520;
-  stroke-width: 2;
+  stroke-width: 1.5;
   fill: none;
 }
 .tree-svg .connection-line.active {
   stroke: #ffb300;
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 
 .tree-svg .talent-node {
@@ -107,56 +111,56 @@ html, body {
 .tree-svg .node-border-square {
   fill: none;
   stroke: #555;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 .tree-svg .node-border-square.selected {
   stroke: #ffd100;
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 .tree-svg .node-border-square.free {
   stroke: #4a9;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 .tree-svg .node-border-square.unselected {
   stroke: #333;
-  stroke-width: 1.5;
+  stroke-width: 1;
 }
 
 .tree-svg .node-border-circle {
   fill: none;
   stroke: #555;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 .tree-svg .node-border-circle.selected {
   stroke: #ffd100;
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 .tree-svg .node-border-circle.free {
   stroke: #4a9;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 .tree-svg .node-border-circle.unselected {
   stroke: #333;
-  stroke-width: 1.5;
+  stroke-width: 1;
 }
 
 .tree-svg .node-border-octagon {
   fill: none;
   stroke: #555;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 .tree-svg .node-border-octagon.selected {
   stroke: #ffd100;
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 .tree-svg .node-border-octagon.unselected {
   stroke: #333;
-  stroke-width: 1.5;
+  stroke-width: 1;
 }
 
 .tree-svg .rank-text {
   fill: #fff;
-  font-size: 11px;
+  font-size: 9px;
   font-family: 'Segoe UI', Arial, sans-serif;
   font-weight: 700;
   text-anchor: middle;
@@ -166,7 +170,7 @@ html, body {
 
 .tree-svg .rank-bg {
   fill: rgba(0, 0, 0, 0.75);
-  rx: 3;
+  rx: 2;
 }
 
 .tree-svg .talent-node.unselected .node-icon {
@@ -180,7 +184,7 @@ html, body {
   position: relative;
   z-index: 10;
   text-align: center;
-  padding: 16px 0 30px;
+  padding: 8px 0 20px;
 }
 .copy-bar.visible {
   display: block;
@@ -272,23 +276,14 @@ html, body {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   .tree-panel[data-tree="class"],
   .tree-panel[data-tree="spec"] {
-    width: 480px;
+    width: 42%;
   }
   .tree-panel-hero {
-    width: 280px;
-  }
-}
-
-@media (max-width: 1100px) {
-  .tree-panel[data-tree="class"],
-  .tree-panel[data-tree="spec"] {
-    width: 400px;
-  }
-  .tree-panel-hero {
-    width: 240px;
+    width: 14%;
+    min-width: 160px;
   }
 }
 
@@ -303,7 +298,7 @@ html, body {
     max-width: 560px;
   }
   .tree-panel-hero {
-    width: 80%;
-    max-width: 360px;
+    width: 60%;
+    max-width: 300px;
   }
 }
