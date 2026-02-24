@@ -37,7 +37,27 @@ html, body {
   pointer-events: none;
   opacity: 0.35;
 }
+/* ===== Hero Tree Icon ===== */
+.hero-tree-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 8px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3px solid #c8a84e;
+  overflow: hidden;
+  background: #1a1a2e;
+  box-shadow: 0 0 12px rgba(200, 168, 78, 0.5);
+}
 
+.hero-tree-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 /* ===== Error ===== */
 .error-msg {
   position: relative;
