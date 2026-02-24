@@ -268,24 +268,13 @@ html, body {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 1300px) {
-  .tree-panel[data-tree="class"],
-  .tree-panel[data-tree="spec"] {
-    width: 440px;
-  }
-  .tree-panel-hero {
-    width: 170px;
-  }
-}
-
 @media (max-width: 1100px) {
- @media (max-width: 1100px) {
   .tree-panel[data-tree="class"],
   .tree-panel[data-tree="spec"] {
     width: 360px;
   }
   .tree-panel-hero {
-    width: 130px;
+    width: 240px;
   }
 }
 
@@ -300,7 +289,7 @@ html, body {
     max-width: 440px;
   }
   .tree-panel-hero {
-    width: 60%;
-    max-width: 200px;
+    width: 70%;
+    max-width: 300px;
   }
 }
