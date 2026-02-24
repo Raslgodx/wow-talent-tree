@@ -14,15 +14,18 @@ html, body {
   overflow-x: hidden;
 }
 
-#app {
+/* ===== Main Container 1400px ===== */
+.main-container {
   position: relative;
-  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 /* ===== Spec Background ===== */
 .spec-background {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
@@ -32,7 +35,7 @@ html, body {
   background-repeat: no-repeat;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
 /* ===== Error ===== */
@@ -55,72 +58,29 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 12px;
-  padding: 20px 10px;
-  min-height: calc(100vh - 60px);
+  padding: 20px 10px 0;
 }
 
 .trees-container.single-view .tree-panel {
   display: none;
 }
 .trees-container.single-view .tree-panel.visible {
-  display: flex;
+  display: block;
 }
 
 /* ===== Tree Panel ===== */
 .tree-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  max-width: 500px;
-  min-width: 300px;
+  flex: 0 0 auto;
 }
 
-.tree-panel[data-tree="hero"] {
-  max-width: 360px;
-  min-width: 240px;
+.tree-panel[data-tree="class"],
+.tree-panel[data-tree="spec"] {
+  width: 520px;
 }
 
-/* ===== Tree Header ===== */
-.tree-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 8px 16px;
-  margin-bottom: 4px;
-  min-height: 36px;
-}
-
-.tree-header-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ffd100;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-  text-transform: capitalize;
-}
-
-.tree-header-points {
-  font-size: 13px;
-  color: #aaa;
-  font-weight: 400;
-}
-
-/* ===== Tree Viewport ===== */
-.tree-viewport {
-  width: 100%;
-  position: relative;
-  background: rgba(10, 10, 30, 0.65);
-  border: 1px solid rgba(255, 209, 0, 0.15);
-  border-radius: 8px;
-  overflow: hidden;
-  backdrop-filter: blur(4px);
-}
-
-.tree-panel[data-tree="hero"] .tree-viewport {
-  background: rgba(15, 10, 40, 0.75);
-  border-color: rgba(150, 120, 255, 0.25);
+.tree-panel-hero {
+  width: 300px;
+  align-self: center;
 }
 
 .tree-svg {
@@ -133,7 +93,7 @@ html, body {
 
 /* Connection lines */
 .tree-svg .connection-line {
-  stroke: #665522;
+  stroke: #3a3520;
   stroke-width: 2;
   fill: none;
 }
@@ -147,7 +107,7 @@ html, body {
   cursor: default;
 }
 
-/* Icon clipping shapes */
+/* Square border (multi-rank) */
 .tree-svg .node-border-square {
   fill: none;
   stroke: #555;
@@ -162,10 +122,11 @@ html, body {
   stroke-width: 2;
 }
 .tree-svg .node-border-square.unselected {
-  stroke: #444;
+  stroke: #333;
   stroke-width: 1.5;
 }
 
+/* Circle border (single rank) */
 .tree-svg .node-border-circle {
   fill: none;
   stroke: #555;
@@ -180,21 +141,22 @@ html, body {
   stroke-width: 2;
 }
 .tree-svg .node-border-circle.unselected {
-  stroke: #444;
+  stroke: #333;
   stroke-width: 1.5;
 }
 
-.tree-svg .node-border-choice {
+/* Octagon border (choice nodes) */
+.tree-svg .node-border-octagon {
   fill: none;
   stroke: #555;
   stroke-width: 2;
 }
-.tree-svg .node-border-choice.selected {
+.tree-svg .node-border-octagon.selected {
   stroke: #ffd100;
   stroke-width: 2.5;
 }
-.tree-svg .node-border-choice.unselected {
-  stroke: #444;
+.tree-svg .node-border-octagon.unselected {
+  stroke: #333;
   stroke-width: 1.5;
 }
 
@@ -207,35 +169,28 @@ html, body {
   text-anchor: middle;
   dominant-baseline: auto;
   pointer-events: none;
-  text-shadow: 0 1px 2px #000;
 }
 
 .tree-svg .rank-bg {
-  fill: rgba(0, 0, 0, 0.7);
+  fill: rgba(0, 0, 0, 0.75);
   rx: 3;
 }
 
 /* Unselected nodes dim */
 .tree-svg .talent-node.unselected .node-icon {
-  opacity: 0.35;
+  opacity: 0.3;
   filter: grayscale(100%);
 }
 
-/* ===== Bottom Bar ===== */
-.bottom-bar {
+/* ===== Copy Bar ===== */
+.copy-bar {
   display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   z-index: 10;
-  padding: 10px;
-  background: rgba(10, 10, 30, 0.9);
-  border-top: 1px solid rgba(255, 209, 0, 0.15);
   text-align: center;
-  backdrop-filter: blur(8px);
+  padding: 16px 0 30px;
 }
-.bottom-bar.visible {
+.copy-bar.visible {
   display: block;
 }
 
@@ -243,8 +198,8 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 20px;
-  background: linear-gradient(135deg, #2a2a4a, #1a1a3a);
+  padding: 8px 24px;
+  background: rgba(20, 20, 40, 0.8);
   border: 1px solid rgba(255, 209, 0, 0.3);
   border-radius: 6px;
   color: #ffd100;
@@ -254,13 +209,14 @@ html, body {
   transition: all 0.2s;
 }
 .copy-btn:hover {
-  background: linear-gradient(135deg, #3a3a5a, #2a2a4a);
+  background: rgba(40, 40, 70, 0.9);
   border-color: #ffd100;
 }
 .copy-btn.copied {
   border-color: #4a9;
   color: #4a9;
 }
+
 /* ===== Custom Wowhead Tooltip ===== */
 .wh-tooltip {
   display: none;
@@ -299,26 +255,6 @@ html, body {
   color: #ffd100;
 }
 
-.wh-tooltip .q0 {
-  color: #9d9d9d;
-}
-
-.wh-tooltip .q1 {
-  color: #fff;
-}
-
-.wh-tooltip .q2 {
-  color: #1eff00;
-}
-
-.wh-tooltip .q3 {
-  color: #0070dd;
-}
-
-.wh-tooltip .q4 {
-  color: #a335ee;
-}
-
 .wh-tooltip a {
   color: #4488ff;
   text-decoration: none;
@@ -331,28 +267,11 @@ html, body {
   text-align: center;
 }
 
-.wh-tooltip-simple {
-  padding: 4px;
-}
-
 .wh-tooltip-simple b {
   color: #ffd100;
   font-size: 14px;
 }
 
-/* Wowhead injected tooltip styles */
-.wh-tooltip .whtt-name {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.wh-tooltip .whtt-extra {
-  color: #aaa;
-  font-size: 12px;
-}
-
-/* SVG link cursor */
 .talent-link {
   cursor: pointer;
 }
@@ -361,12 +280,28 @@ html, body {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 1000px) {
+@media (max-width: 1200px) {
+  .tree-panel[data-tree="class"],
+  .tree-panel[data-tree="spec"] {
+    width: 420px;
+  }
+  .tree-panel-hero {
+    width: 260px;
+  }
+}
+
+@media (max-width: 900px) {
   .trees-container {
     flex-direction: column;
     align-items: center;
   }
-  .tree-panel {
-    max-width: 95%;
+  .tree-panel[data-tree="class"],
+  .tree-panel[data-tree="spec"] {
+    width: 95%;
+    max-width: 520px;
+  }
+  .tree-panel-hero {
+    width: 80%;
+    max-width: 360px;
   }
 }
