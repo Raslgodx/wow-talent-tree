@@ -91,11 +91,17 @@ html, body {
 }
 
 /* ===== Hero Tree Icon ===== */
+.tree-panel-hero {
+  width: 300px;
+  align-self: center;
+  position: relative;
+}
+
 .hero-tree-icon {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 0 auto 0;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -103,6 +109,7 @@ html, body {
   overflow: hidden;
   background: #1a1a2e;
   box-shadow: 0 0 12px rgba(200, 168, 78, 0.5);
+  z-index: 5;
 }
 
 .hero-tree-icon img {
