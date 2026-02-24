@@ -1,7 +1,7 @@
 /**
  * Tree Renderer — draws talent trees into SVG
- * Icons loaded from Wowhead CDN
- * Tooltips via Wowhead with /ru/ locale
+ * Icons from Wowhead CDN
+ * Choice nodes rendered as octagon
  */
 
 var TreeRenderer = (function () {
@@ -13,28 +13,36 @@ var TreeRenderer = (function () {
   var PADDING_TOP = 24;
   var PADDING_BOTTOM = 36;
   var RANK_OFFSET_Y = 22;
-  var CHOICE_SIZE = 42;
+  var OCTAGON_SIZE = 24; // "radius" for octagon
 
   var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
-  var WOWHEAD_TOOLTIP_BASE = 'https://www.wowhead.com/ru/spell=';
 
   function getIconUrl(iconName) {
     if (!iconName) return '';
     return WOWHEAD_ICON_BASE + iconName.toLowerCase() + '.jpg';
   }
 
-  function getTooltipUrl(spellId) {
-    if (!spellId) return '#';
-    return WOWHEAD_TOOLTIP_BASE + spellId;
+  /**
+   * Generate octagon points centered at (cx, cy) with given radius
+   */
+  function octagonPoints(cx, cy, r) {
+    var pts = [];
+    for (var i = 0; i < 8; i++) {
+      var angle = (Math.PI * 2 * i / 8) - Math.PI / 8;
+      pts.push(
+        (cx + r * Math.cos(angle)).toFixed(2) + ',' +
+        (cy + r * Math.sin(angle)).toFixed(2)
+      );
+    }
+    return pts.join(' ');
   }
 
   /**
    * Normalize node positions to grid coordinates
    */
   function normalizePositions(nodes) {
-    if (!nodes || nodes.length === 0) return [];
+    if (!nodes || nodes.length === 0) return { items: [], cols: 0, rows: 0 };
 
-    // Collect unique X and Y values
     var xVals = [], yVals = [];
     var xSet = {}, ySet = {};
     for (var i = 0; i < nodes.length; i++) {
@@ -45,7 +53,6 @@ var TreeRenderer = (function () {
     xVals.sort(function (a, b) { return a - b; });
     yVals.sort(function (a, b) { return a - b; });
 
-    // Map to grid indices
     var xMap = {}, yMap = {};
     for (var xi = 0; xi < xVals.length; xi++) xMap[xVals[xi]] = xi;
     for (var yi = 0; yi < yVals.length; yi++) yMap[yVals[yi]] = yi;
@@ -66,9 +73,6 @@ var TreeRenderer = (function () {
     };
   }
 
-  /**
-   * Create SVG element helper
-   */
   function svgEl(tag, attrs) {
     var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
     if (attrs) {
@@ -81,14 +85,11 @@ var TreeRenderer = (function () {
     return el;
   }
 
-  /**
-   * Build adjacency for connection lines
-   */
   function buildConnections(nodes) {
     var conns = [];
     var idMap = {};
     for (var i = 0; i < nodes.length; i++) {
-      idMap[nodes[i].id] = nodes[i];
+      idMap[nodes[i].id] = true;
     }
     for (var j = 0; j < nodes.length; j++) {
       var n = nodes[j];
@@ -102,9 +103,6 @@ var TreeRenderer = (function () {
     return conns;
   }
 
-  /**
-   * Render a talent tree into an SVG element
-   */
   function render(svgElement, nodes, selections) {
     if (!svgElement) return;
     while (svgElement.firstChild) svgElement.removeChild(svgElement.firstChild);
@@ -122,7 +120,6 @@ var TreeRenderer = (function () {
     svgElement.setAttribute('viewBox', '0 0 ' + svgWidth + ' ' + svgHeight);
     svgElement.setAttribute('width', '100%');
 
-    // Defs for clipping
     var defs = svgEl('defs');
     svgElement.appendChild(defs);
 
@@ -166,7 +163,6 @@ var TreeRenderer = (function () {
       var isSelected = !!sel;
       var isFree = node.freeNode && isSelected;
 
-      // Determine entry and spell info
       var entryIdx = (sel && sel.choiceIndex) || 0;
       var entry = (node.entries && node.entries[entryIdx]) || (node.entries && node.entries[0]);
       var iconName = entry ? entry.icon : '';
@@ -174,46 +170,37 @@ var TreeRenderer = (function () {
       var rank = sel ? sel.rank : 0;
       var maxRanks = node.maxRanks || 1;
 
-      // Node type
       var isChoice = node.type === 'choice';
       var isSingle = node.type === 'single';
 
-      // Group
       var g = svgEl('g', {
         'class': 'talent-node' + (isSelected ? '' : ' unselected'),
         'data-node-id': node.id
       });
 
-      // Clip path
       var clipId = 'clip-' + node.id;
       var clip = svgEl('clipPath', { id: clipId });
       defs.appendChild(clip);
 
       var halfIcon = ICON_SIZE / 2;
-      var halfChoice = CHOICE_SIZE / 2;
 
       if (isChoice) {
-        // Diamond clip
-        var diamond = svgEl('polygon', {
-          points: [
-            pos.cx + ',' + (pos.cy - halfChoice),
-            (pos.cx + halfChoice) + ',' + pos.cy,
-            pos.cx + ',' + (pos.cy + halfChoice),
-            (pos.cx - halfChoice) + ',' + pos.cy
-          ].join(' ')
+        // Octagon clip
+        var octClip = svgEl('polygon', {
+          points: octagonPoints(pos.cx, pos.cy, OCTAGON_SIZE)
         });
-        clip.appendChild(diamond);
+        clip.appendChild(octClip);
       } else if (isSingle && maxRanks === 1) {
         // Circle clip
-        var circle = svgEl('circle', {
+        var circleClip = svgEl('circle', {
           cx: pos.cx,
           cy: pos.cy,
           r: halfIcon
         });
-        clip.appendChild(circle);
+        clip.appendChild(circleClip);
       } else {
-        // Square clip (with rounded corners simulated by rect)
-        var rect = svgEl('rect', {
+        // Square clip
+        var rectClip = svgEl('rect', {
           x: pos.cx - halfIcon,
           y: pos.cy - halfIcon,
           width: ICON_SIZE,
@@ -221,17 +208,19 @@ var TreeRenderer = (function () {
           rx: 4,
           ry: 4
         });
-        clip.appendChild(rect);
+        clip.appendChild(rectClip);
       }
 
       // Icon image
       if (iconName) {
+        var imgSize = isChoice ? OCTAGON_SIZE * 2 : ICON_SIZE;
+        var imgOffset = imgSize / 2;
         var img = svgEl('image', {
           href: getIconUrl(iconName),
-          x: isChoice ? pos.cx - halfChoice : pos.cx - halfIcon,
-          y: isChoice ? pos.cy - halfChoice : pos.cy - halfIcon,
-          width: isChoice ? CHOICE_SIZE : ICON_SIZE,
-          height: isChoice ? CHOICE_SIZE : ICON_SIZE,
+          x: pos.cx - imgOffset,
+          y: pos.cy - imgOffset,
+          width: imgSize,
+          height: imgSize,
           'clip-path': 'url(#' + clipId + ')',
           'class': 'node-icon'
         });
@@ -240,38 +229,33 @@ var TreeRenderer = (function () {
 
       // Border
       if (isChoice) {
-        var borderState = isSelected ? 'selected' : 'unselected';
-        var borderDiamond = svgEl('polygon', {
-          points: [
-            pos.cx + ',' + (pos.cy - halfChoice),
-            (pos.cx + halfChoice) + ',' + pos.cy,
-            pos.cx + ',' + (pos.cy + halfChoice),
-            (pos.cx - halfChoice) + ',' + pos.cy
-          ].join(' '),
-          'class': 'node-border-choice ' + borderState
+        var octState = isSelected ? 'selected' : 'unselected';
+        var borderOct = svgEl('polygon', {
+          points: octagonPoints(pos.cx, pos.cy, OCTAGON_SIZE),
+          'class': 'node-border-octagon ' + octState
         });
-        g.appendChild(borderDiamond);
+        g.appendChild(borderOct);
       } else if (isSingle && maxRanks === 1) {
-        var circBorderState = isFree ? 'free' : (isSelected ? 'selected' : 'unselected');
-        var borderCircle = svgEl('circle', {
+        var circState = isFree ? 'free' : (isSelected ? 'selected' : 'unselected');
+        var borderCirc = svgEl('circle', {
           cx: pos.cx,
           cy: pos.cy,
           r: halfIcon,
-          'class': 'node-border-circle ' + circBorderState
+          'class': 'node-border-circle ' + circState
         });
-        g.appendChild(borderCircle);
+        g.appendChild(borderCirc);
       } else {
-        var sqBorderState = isFree ? 'free' : (isSelected ? 'selected' : 'unselected');
-        var borderRect = svgEl('rect', {
+        var sqState = isFree ? 'free' : (isSelected ? 'selected' : 'unselected');
+        var borderSq = svgEl('rect', {
           x: pos.cx - halfIcon,
           y: pos.cy - halfIcon,
           width: ICON_SIZE,
           height: ICON_SIZE,
           rx: 4,
           ry: 4,
-          'class': 'node-border-square ' + sqBorderState
+          'class': 'node-border-square ' + sqState
         });
-        g.appendChild(borderRect);
+        g.appendChild(borderSq);
       }
 
       // Rank text
@@ -279,7 +263,6 @@ var TreeRenderer = (function () {
         var rankStr = rank + '/' + maxRanks;
         var textY = pos.cy + halfIcon + RANK_OFFSET_Y - 6;
 
-        // Background rect for rank
         var rankBg = svgEl('rect', {
           x: pos.cx - 16,
           y: textY - 10,
@@ -298,8 +281,7 @@ var TreeRenderer = (function () {
         g.appendChild(rankText);
       }
 
-      // Tooltip link — wrap group in <a> with Wowhead /ru/ URL
-      // Prevent click navigation, show tooltip only
+      // Tooltip link
       if (spellId) {
         var link = svgEl('a', {
           'data-spell-id': spellId,
@@ -307,7 +289,6 @@ var TreeRenderer = (function () {
           'href': 'javascript:void(0)'
         });
 
-        // Prevent any navigation
         link.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
