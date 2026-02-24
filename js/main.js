@@ -200,20 +200,20 @@
     if (!currentResult) return;
     var r = currentResult;
 
-    TreeRenderer.render(
+    TalentTreeRenderer.renderTree(
       document.getElementById('classTreeSvg'),
       r.classNodes,
       r.classSelections
     );
 
-    TreeRenderer.render(
+    TalentTreeRenderer.renderTree(
       document.getElementById('specTreeSvg'),
       r.specNodes,
       r.specSelections
     );
 
     var heroNodes = getSelectedHeroNodes(r);
-    TreeRenderer.render(
+    TalentTreeRenderer.renderTree(
       document.getElementById('heroTreeSvg'),
       heroNodes,
       r.heroSelections
