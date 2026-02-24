@@ -264,6 +264,12 @@ var TalentTreeRenderer = (function () {
       heroIconEl = null;
     }
 
+    // Reset hero panel top padding
+    var heroPanel = document.getElementById('heroTreePanel');
+    if (heroPanel) {
+      heroPanel.style.paddingTop = '';
+    }
+
     if (!treeData || !treeData.subTreeNodes || !treeData.subTreeNodes[0]) return;
 
     var subTreeNode = treeData.subTreeNodes[0];
@@ -288,10 +294,12 @@ var TalentTreeRenderer = (function () {
     var atlas = activeEntry.atlasMemberName;
     if (!atlas) return;
 
-    var imgSrc = 'images/hero/' + atlas + '.webp';
+    var imgSrc = 'images/hero/' + atlas + '.png';
 
-    var heroPanel = document.getElementById('heroTreePanel');
     if (!heroPanel) return;
+
+    // Add padding to make room for the icon
+    heroPanel.style.paddingTop = '72px';
 
     heroIconEl = document.createElement('div');
     heroIconEl.className = 'hero-tree-icon';
@@ -301,16 +309,11 @@ var TalentTreeRenderer = (function () {
     img.alt = activeEntry.name || '';
     img.onerror = function () {
       heroIconEl.style.display = 'none';
+      heroPanel.style.paddingTop = '';
     };
 
     heroIconEl.appendChild(img);
-
-    var svgEl = heroPanel.querySelector('svg');
-    if (svgEl) {
-      heroPanel.insertBefore(heroIconEl, svgEl);
-    } else {
-      heroPanel.insertBefore(heroIconEl, heroPanel.firstChild);
-    }
+    heroPanel.appendChild(heroIconEl);
   }
 
   return {
