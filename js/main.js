@@ -335,7 +335,7 @@
       '</code></div>';
   }
 
-  function init() {
+    function init() {
     loadTalentData(function (err) {
       if (err) {
         showError(err);
@@ -350,6 +350,7 @@
 
         console.log('Node order data loaded successfully');
         initCopyButton();
+        TalentTooltip.init();
 
         var urlData = parseUrl();
         if (urlData) {
