@@ -1,11 +1,19 @@
 /**
- * Main application entry point
+ * Main application — URL-driven talent tree viewer
+ *
+ * URL formats:
+ *   ?all=EXPORT_STRING    — show all 3 trees + copy button
+ *   ?class=EXPORT_STRING  — show only class tree
+ *   ?hero=EXPORT_STRING   — show only hero tree
+ *   ?spec=EXPORT_STRING   — show only spec tree
  */
 
 (function () {
 
   var talentData = null;
   var currentResult = null;
+  var currentMode = null;     // 'all', 'class', 'hero', 'spec'
+  var currentString = null;   // the export string
 
   // ---- Load talent JSON ----
   function loadTalentData(callback) {
@@ -29,52 +37,90 @@
     xhr.send();
   }
 
-  // ---- Process talent string ----
-  function loadBuild(exportString) {
-    clearError();
+  // ---- Parse URL to get mode and string ----
+  function parseUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var modes = ['all', 'class', 'hero', 'spec'];
 
-    if (!talentData) {
-      showError('Talent data not loaded yet. Please wait...');
-      return;
+    for (var i = 0; i < modes.length; i++) {
+      var val = params.get(modes[i]);
+      if (val && val.trim().length > 0) {
+        return { mode: modes[i], str: val.trim() };
+      }
     }
 
-    var str = (exportString || '').trim();
-    if (str.length === 0) {
-      showError('Please enter a talent export string.');
+    // Fallback: check old ?t= format
+    var t = params.get('t') || params.get('talents') || '';
+    if (t.trim().length > 0) {
+      return { mode: 'all', str: t.trim() };
+    }
+
+    return null;
+  }
+
+  // ---- Decode and render ----
+  function loadBuild(mode, exportString) {
+    clearError();
+    currentMode = mode;
+    currentString = exportString;
+
+    if (!talentData) {
+      showError('Talent data not loaded.');
       return;
     }
 
     try {
-      currentResult = TalentDecoder.decode(str, talentData);
-      updateUI();
-      updateUrl(str);
+      currentResult = TalentDecoder.decode(exportString, talentData);
+      applyView();
     } catch (e) {
       console.error('Decode error:', e);
-      showError('Error: ' + e.message);
+      showError('Error decoding talent string: ' + e.message);
     }
   }
 
-  // ---- Update UI after decode ----
-  function updateUI() {
+  // ---- Apply view mode (show/hide panels) ----
+  function applyView() {
     if (!currentResult) return;
 
-    var r = currentResult;
+    var container = document.getElementById('treesContainer');
+    var classPanel = document.getElementById('classTreePanel');
+    var heroPanel = document.getElementById('heroTreePanel');
+    var specPanel = document.getElementById('specTreePanel');
+    var bottomBar = document.getElementById('bottomBar');
+    var panels = [classPanel, heroPanel, specPanel];
 
-    // Info bar
-    document.getElementById('className').textContent = r.treeData.className || '-';
-    document.getElementById('specName').textContent = r.treeData.specName || '-';
-    document.getElementById('heroSpecName').textContent =
-      (r.heroTreeData && r.heroTreeData.name) ? r.heroTreeData.name : '-';
-    document.getElementById('pointCount').textContent = r.totalPoints + ' points';
+    // Reset
+    container.classList.remove('single-view');
+    for (var i = 0; i < panels.length; i++) {
+      panels[i].classList.remove('visible');
+      panels[i].style.display = '';
+    }
+    bottomBar.classList.remove('visible');
 
-    // Render trees
-    renderAllTrees();
+    if (currentMode === 'all') {
+      // Show all three + copy button
+      container.classList.remove('single-view');
+      bottomBar.classList.add('visible');
+      renderAllTrees();
+    } else {
+      // Single tree view
+      container.classList.add('single-view');
+
+      if (currentMode === 'class') {
+        classPanel.classList.add('visible');
+      } else if (currentMode === 'hero') {
+        heroPanel.classList.add('visible');
+      } else if (currentMode === 'spec') {
+        specPanel.classList.add('visible');
+      }
+
+      renderAllTrees();
+    }
   }
 
-  // ---- Render all three trees ----
+  // ---- Render all trees ----
   function renderAllTrees() {
     if (!currentResult) return;
-
     var r = currentResult;
 
     // Class tree
@@ -85,7 +131,7 @@
     var specSvg = document.getElementById('specTreeSvg');
     TreeRenderer.render(specSvg, r.specNodes, r.specSelections);
 
-    // Hero tree — filter to selected hero sub-tree if applicable
+    // Hero tree
     var heroSvg = document.getElementById('heroTreeSvg');
     var heroNodes = r.heroNodes;
 
@@ -105,59 +151,52 @@
     TreeRenderer.render(heroSvg, heroNodes, r.heroSelections);
   }
 
-  // ---- Tab switching ----
-  function initTabs() {
-    var tabs = document.querySelectorAll('.tab');
-    var container = document.getElementById('treesContainer');
+  // ---- Copy button ----
+  function initCopyButton() {
+    var btn = document.getElementById('copyBtn');
+    if (!btn) return;
 
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].addEventListener('click', function () {
-        // Remove active from all
-        for (var j = 0; j < tabs.length; j++) {
-          tabs[j].classList.remove('active');
-        }
-        this.classList.add('active');
+    btn.addEventListener('click', function () {
+      if (!currentString) return;
 
-        var view = this.getAttribute('data-tab');
-        var panels = document.querySelectorAll('.tree-panel');
-
-        if (view === 'all') {
-          container.classList.remove('single-view');
-          for (var k = 0; k < panels.length; k++) {
-            panels[k].classList.remove('visible');
-          }
-        } else {
-          container.classList.add('single-view');
-          for (var m = 0; m < panels.length; m++) {
-            panels[m].classList.remove('visible');
-          }
-          var target = document.querySelector('.tree-panel[data-tree="' + view + '"]');
-          if (target) {
-            target.classList.add('visible');
-          }
-        }
-      });
-    }
+      // Copy to clipboard
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentString).then(function () {
+          showCopied(btn);
+        }).catch(function () {
+          fallbackCopy(currentString, btn);
+        });
+      } else {
+        fallbackCopy(currentString, btn);
+      }
+    });
   }
 
-  // ---- URL params ----
-  function checkUrlParams() {
-    var params = new URLSearchParams(window.location.search);
-    var str = params.get('t') || params.get('talents') || params.get('loadout') || '';
-    if (str.length > 0) {
-      document.getElementById('talentString').value = str;
-      loadBuild(str);
-    }
-  }
-
-  function updateUrl(str) {
+  function fallbackCopy(text, btn) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
     try {
-      var url = new URL(window.location);
-      url.searchParams.set('t', str);
-      window.history.replaceState({}, '', url.toString());
+      document.execCommand('copy');
+      showCopied(btn);
     } catch (e) {
-      // Ignore URL errors (e.g., file:// protocol)
+      console.error('Copy failed:', e);
     }
+    document.body.removeChild(textarea);
+  }
+
+  function showCopied(btn) {
+    var originalText = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!';
+
+    setTimeout(function () {
+      btn.classList.remove('copied');
+      btn.innerHTML = originalText;
+    }, 2000);
   }
 
   // ---- Error display ----
@@ -171,38 +210,38 @@
     if (el) el.textContent = '';
   }
 
+  // ---- Show empty state ----
+  function showEmpty() {
+    var container = document.getElementById('treesContainer');
+    container.innerHTML = '<div style="text-align:center;color:#4a4a6a;padding:60px 20px;font-size:15px;">' +
+      '<p style="margin-bottom:8px;">No talent string provided.</p>' +
+      '<p style="font-size:13px;color:#3a3a5a;">Use URL parameters:</p>' +
+      '<code style="display:block;margin-top:12px;padding:10px;background:#13132a;border-radius:6px;color:#8888aa;font-size:12px;word-break:break-all;">' +
+      '?all=EXPORT_STRING<br>?class=EXPORT_STRING<br>?hero=EXPORT_STRING<br>?spec=EXPORT_STRING' +
+      '</code></div>';
+  }
+
   // ---- Init ----
   function init() {
-    // Load talent data
     loadTalentData(function (err) {
       if (err) {
         showError(err);
         return;
       }
 
-      // Init components
-      initTabs();
+      initCopyButton();
       TalentTooltip.init();
 
-      // Load button
-      document.getElementById('loadBtn').addEventListener('click', function () {
-        var str = document.getElementById('talentString').value;
-        loadBuild(str);
-      });
-
-      // Enter key
-      document.getElementById('talentString').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter' || e.keyCode === 13) {
-          document.getElementById('loadBtn').click();
-        }
-      });
-
-      // Check URL for talent string
-      checkUrlParams();
+      // Parse URL
+      var urlData = parseUrl();
+      if (urlData) {
+        loadBuild(urlData.mode, urlData.str);
+      } else {
+        showEmpty();
+      }
     });
   }
 
-  // Start when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
