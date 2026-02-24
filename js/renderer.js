@@ -288,7 +288,7 @@ var TalentTreeRenderer = (function () {
     var atlas = activeEntry.atlasMemberName;
     if (!atlas) return;
 
-    var imgSrc = 'images/hero/' + atlas + '.png';
+    var imgSrc = 'images/hero/' + atlas + '.webp';
 
     var heroPanel = document.getElementById('heroTreePanel');
     if (!heroPanel) return;
