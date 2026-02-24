@@ -131,7 +131,7 @@ var TalentTooltip = (function () {
     return null;
   }
 
-  function showTooltip(spellId, clientX, clientY) {
+    function showTooltip(spellId, clientX, clientY) {
     currentSpellId = spellId;
 
     if (tooltipCache[spellId]) {
@@ -140,27 +140,21 @@ var TalentTooltip = (function () {
       return;
     }
 
-    // Loading
-    tooltipEl.innerHTML = '<div class="wh-tooltip-loading">Загрузка...</div>';
-    tooltipEl.style.display = 'block';
-    positionTooltip(clientX, clientY);
+    // Скрываем тултип пока грузится
+    tooltipEl.style.display = 'none';
 
     var url = WOWHEAD_TOOLTIP_API + spellId + '?dataEnv=1&locale=' + LOCALE;
 
     fetch(url)
       .then(function (r) { return r.json(); })
       .then(function (data) {
+        tooltipCache[spellId] = data;
         if (currentSpellId === spellId) {
-          tooltipCache[spellId] = data;
           renderTooltip(data);
+          positionTooltip(clientX, clientY);
         }
       })
-      .catch(function () {
-        if (currentSpellId === spellId) {
-          tooltipEl.innerHTML = '<div class="wh-tooltip-simple"><b>Spell #' + spellId + '</b><br>' +
-            '<a href="https://www.wowhead.com/ru/spell=' + spellId + '" target="_blank" style="color:#4488ff;font-size:12px;">Wowhead</a></div>';
-        }
-      });
+      .catch(function () {});
   }
 
   function renderTooltip(data) {
