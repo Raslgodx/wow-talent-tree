@@ -1,28 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WoW Talent Tree</title>
   <link rel="stylesheet" href="css/styles.css">
+  <script>var defined=function(){};var whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:true,hide:{maxstack:true,ilvl:true,sellprice:true}};</script>
+  <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 </head>
-  <script src="js/debug.js"></script>
 <body>
   <div id="app">
     <div id="errorMsg" class="error-msg"></div>
 
+    <!-- Background image per spec -->
+    <div class="spec-background" id="specBackground"></div>
+
     <div class="trees-container" id="treesContainer">
       <div class="tree-panel" id="classTreePanel" data-tree="class">
+        <div class="tree-header">
+          <span class="tree-header-title">Class</span>
+          <span class="tree-header-points" id="classPoints"></span>
+        </div>
         <div class="tree-viewport">
           <svg class="tree-svg" id="classTreeSvg"></svg>
         </div>
       </div>
+
       <div class="tree-panel" id="heroTreePanel" data-tree="hero">
+        <div class="tree-header">
+          <span class="tree-header-title" id="heroTreeName">Hero</span>
+          <span class="tree-header-points" id="heroPoints"></span>
+        </div>
         <div class="tree-viewport">
           <svg class="tree-svg" id="heroTreeSvg"></svg>
         </div>
       </div>
+
       <div class="tree-panel" id="specTreePanel" data-tree="spec">
+        <div class="tree-header">
+          <span class="tree-header-title" id="specTreeName">Spec</span>
+          <span class="tree-header-points" id="specPoints"></span>
+        </div>
         <div class="tree-viewport">
           <svg class="tree-svg" id="specTreeSvg"></svg>
         </div>
@@ -38,8 +56,6 @@
         Copy Build
       </button>
     </div>
-
-    <div class="tooltip" id="tooltip"></div>
   </div>
 
   <script src="js/decoder.js"></script>
