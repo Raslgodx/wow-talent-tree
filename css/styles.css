@@ -35,7 +35,6 @@ html, body {
   background-repeat: no-repeat;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.35;
 }
 
 @media (max-width: 1550px) {
