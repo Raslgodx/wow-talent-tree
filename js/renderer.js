@@ -5,9 +5,9 @@
 var TreeRenderer = (function () {
 
   var ICON_CDN = 'https://wow.zamimg.com/images/wow/icons/medium';
-  var NODE_RADIUS = 20;
-  var SCALE = 0.06;
-  var PADDING = 55;
+  var NODE_RADIUS = 19;
+  var SCALE = 0.08;
+  var PADDING = 40;
 
   // ---- SVG helper ----
   function svg(tag, attrs) {
@@ -61,7 +61,7 @@ var TreeRenderer = (function () {
     return { placed: placed, width: width, height: height };
   }
 
-  // ---- Draw octagon path (for choice nodes) ----
+  // ---- Octagon path ----
   function octagonPath(cx, cy, r) {
     var a = r * 0.414;
     return 'M ' + (cx - r) + ' ' + (cy - a) +
@@ -97,7 +97,7 @@ var TreeRenderer = (function () {
     var isChoice = node.type === 'choice';
     var r = NODE_RADIUS;
 
-    // Pick which entry to display
+    // Pick entry to display
     var entry = node.entries[0];
     if (isChoice && sel && node.entries.length > 1) {
       entry = node.entries[sel.choiceIndex] || node.entries[0];
@@ -121,7 +121,7 @@ var TreeRenderer = (function () {
       'data-spell-id': entry ? entry.spellId : ''
     });
 
-    // 1) Clip path for icon
+    // Clip path
     var clipId = 'clip-node-' + node.id;
     var defs = svg('defs');
     var clip = svg('clipPath', { id: clipId });
@@ -136,14 +136,14 @@ var TreeRenderer = (function () {
         y: cy - r + 3,
         width: (r - 3) * 2,
         height: (r - 3) * 2,
-        rx: 5,
-        ry: 5
+        rx: 4,
+        ry: 4
       }));
     }
     defs.appendChild(clip);
     group.appendChild(defs);
 
-    // 2) Background fill
+    // Background
     if (isChoice) {
       group.appendChild(svg('path', {
         d: octagonPath(cx, cy, r),
@@ -155,13 +155,13 @@ var TreeRenderer = (function () {
         y: cy - r,
         width: r * 2,
         height: r * 2,
-        rx: 7,
-        ry: 7,
+        rx: 6,
+        ry: 6,
         'class': 'node-bg-fill'
       }));
     }
 
-    // 3) Icon image
+    // Icon
     if (entry && entry.icon) {
       group.appendChild(svg('image', {
         href: iconUrl(entry.icon),
@@ -175,7 +175,7 @@ var TreeRenderer = (function () {
       }));
     }
 
-    // 4) Border shape
+    // Border
     if (isChoice) {
       group.appendChild(svg('path', {
         d: octagonPath(cx, cy, r),
@@ -187,13 +187,13 @@ var TreeRenderer = (function () {
         y: cy - r,
         width: r * 2,
         height: r * 2,
-        rx: 7,
-        ry: 7,
+        rx: 6,
+        ry: 6,
         'class': 'node-border-shape'
       }));
     }
 
-    // 5) Rank badge (multi-rank nodes)
+    // Rank badge
     if (node.maxRanks > 1) {
       var bx = cx + r - 2;
       var by = cy + r - 2;
@@ -218,26 +218,11 @@ var TreeRenderer = (function () {
       group.appendChild(txt);
     }
 
-    // 6) Choice node: show both icons when inactive
-    if (isChoice && !isActive && node.entries.length > 1) {
-      // Small split indicator
-      group.appendChild(svg('line', {
-        x1: cx,
-        y1: cy - r + 5,
-        x2: cx,
-        y2: cy + r - 5,
-        stroke: '#4a4a6a',
-        'stroke-width': 1,
-        opacity: 0.6
-      }));
-    }
-
     return group;
   }
 
-  // ---- Main render function ----
+  // ---- Main render ----
   function render(svgElement, nodes, selections) {
-    // Clear
     svgElement.innerHTML = '';
 
     if (!nodes || nodes.length === 0) {
@@ -260,7 +245,6 @@ var TreeRenderer = (function () {
     var h = layout.height;
 
     svgElement.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-    svgElement.style.height = Math.max(h, 300) + 'px';
 
     // Build position lookup
     var posMap = {};
@@ -268,7 +252,7 @@ var TreeRenderer = (function () {
       posMap[placed[i].node.id] = placed[i];
     }
 
-    // --- Draw connections ---
+    // Connections
     var connGroup = svg('g', { 'class': 'connections-layer' });
     for (var c = 0; c < placed.length; c++) {
       var p = placed[c];
@@ -285,7 +269,7 @@ var TreeRenderer = (function () {
     }
     svgElement.appendChild(connGroup);
 
-    // --- Draw nodes ---
+    // Nodes
     var nodeGroup = svg('g', { 'class': 'nodes-layer' });
     for (var d = 0; d < placed.length; d++) {
       nodeGroup.appendChild(renderNode(placed[d], selections));
@@ -293,7 +277,6 @@ var TreeRenderer = (function () {
     svgElement.appendChild(nodeGroup);
   }
 
-  // Public API
   return {
     render: render
   };
