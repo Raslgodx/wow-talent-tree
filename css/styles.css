@@ -294,3 +294,8 @@ html, body {
     max-width: 300px;
   }
 }
+@media (max-width: 1550px) {
+  .spec-background {
+    display: none;
+  }
+}
