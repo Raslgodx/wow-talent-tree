@@ -134,8 +134,12 @@
       return;
     }
 
-    try {
+       try {
       currentResult = TalentDecoder.decode(exportString, talentData);
+
+      // DEBUG — remove after calibration
+      TalentDebug.run(exportString, talentData);
+
       applyView();
     } catch (e) {
       console.error('Decode error:', e);
