@@ -88,6 +88,7 @@ html, body {
 .tree-panel-hero {
   width: 300px;
   align-self: center;
+  position: relative;
 }
 
 /* ===== Hero Tree Icon ===== */
@@ -98,10 +99,6 @@ html, body {
 }
 
 .hero-tree-icon {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
   width: 64px;
   height: 64px;
   border-radius: 50%;
