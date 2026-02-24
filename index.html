@@ -5,57 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WoW Talent Tree</title>
   <link rel="stylesheet" href="css/styles.css">
-  <script>var defined=function(){};var whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:true,hide:{maxstack:true,ilvl:true,sellprice:true}};</script>
-  <script src="https://wow.zamimg.com/js/tooltips.js"></script>
 </head>
 <body>
-  <div id="app">
+  <div class="main-container" id="mainContainer">
     <div id="errorMsg" class="error-msg"></div>
-
-    <!-- Background image per spec -->
     <div class="spec-background" id="specBackground"></div>
 
     <div class="trees-container" id="treesContainer">
       <div class="tree-panel" id="classTreePanel" data-tree="class">
-        <div class="tree-header">
-          <span class="tree-header-title">Class</span>
-          <span class="tree-header-points" id="classPoints"></span>
-        </div>
-        <div class="tree-viewport">
-          <svg class="tree-svg" id="classTreeSvg"></svg>
-        </div>
+        <svg class="tree-svg" id="classTreeSvg"></svg>
       </div>
 
-      <div class="tree-panel" id="heroTreePanel" data-tree="hero">
-        <div class="tree-header">
-          <span class="tree-header-title" id="heroTreeName">Hero</span>
-          <span class="tree-header-points" id="heroPoints"></span>
-        </div>
-        <div class="tree-viewport">
-          <svg class="tree-svg" id="heroTreeSvg"></svg>
-        </div>
+      <div class="tree-panel tree-panel-hero" id="heroTreePanel" data-tree="hero">
+        <svg class="tree-svg" id="heroTreeSvg"></svg>
       </div>
 
       <div class="tree-panel" id="specTreePanel" data-tree="spec">
-        <div class="tree-header">
-          <span class="tree-header-title" id="specTreeName">Spec</span>
-          <span class="tree-header-points" id="specPoints"></span>
-        </div>
-        <div class="tree-viewport">
-          <svg class="tree-svg" id="specTreeSvg"></svg>
-        </div>
+        <svg class="tree-svg" id="specTreeSvg"></svg>
       </div>
     </div>
 
-    <div class="bottom-bar" id="bottomBar">
+    <div class="copy-bar" id="copyBar">
       <button class="copy-btn" id="copyBtn">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
           <path d="M3 11V3C3 2.44772 3.44772 2 4 2H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        Copy Build
+        Копировать билд
       </button>
     </div>
+
+    <div class="wh-tooltip" id="tooltip"></div>
   </div>
 
   <script src="js/decoder.js"></script>
