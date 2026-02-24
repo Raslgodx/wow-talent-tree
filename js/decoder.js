@@ -1,158 +1,138 @@
 /**
  * WoW Talent Loadout String Decoder (The War Within / 11.x)
- * 
- * Reverse-engineered format:
- *   - Custom base64 → bytes
+ *
+ * Format (from Wowhead TalentCalcDragonflight.js):
+ *   - Base64 alphabet: A-Za-z0-9+/  (6 bits per char, LSB first)
  *   - Header: 8-bit version, 16-bit specId, 128-bit treeHash
- *   - Class tree: for each node (sorted posY,posX):
+ *   - For each node in fixed order (from wowhead-node-order.json):
  *       1 bit: isNodeSelected
- *       1 bit: isNodePartiallyRanked  
- *       if selected and choice: ceil(log2(entryCount)) bits for choiceIndex
- *       if selected and partiallyRanked and maxRanks>1: ceil(log2(maxRanks)) bits for currentRank
- *   - Spec tree: same format
- *   - Hero tree: 
- *       ceil(log2(subTreeCount)) bits for subTreeId selection
- *       then same format for hero nodes of that subtree
+ *       if version>1 && selected: 1 bit isNodePurchased
+ *       if purchased:
+ *         1 bit: isPartiallyRanked
+ *         if partial: 6 bits partialRanksPurchased
+ *         1 bit: isChoiceNode
+ *         if choice: 2 bits choiceNodeSelection
  */
 
 var TalentDecoder = (function () {
 
   var ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-  // ---- BitReader ----
-  function BitReader(bytes) {
-    this.bytes = bytes;
-    this.pos = 0;
+  var nodeOrderData = null;
+
+  // ---- Load node order from Wowhead data ----
+  function loadNodeOrder(callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'data/wowhead-node-order.json', true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200 || xhr.status === 0) {
+          try {
+            nodeOrderData = JSON.parse(xhr.responseText);
+            callback(null);
+          } catch (e) {
+            callback('Failed to parse wowhead-node-order.json: ' + e.message);
+          }
+        } else {
+          callback('Failed to load wowhead-node-order.json (HTTP ' + xhr.status + ')');
+        }
+      }
+    };
+    xhr.send();
   }
 
-  BitReader.prototype.readBits = function (count) {
+  // ---- Bit reader working directly on base64 values (6-bit) ----
+  function BitReader(exportString) {
+    this.vals = [];
+    for (var i = 0; i < exportString.length; i++) {
+      this.vals.push(ALPHABET.indexOf(exportString[i]));
+    }
+    this.currentIndex = 0;
+    this.currentExtractedBits = 0;
+    this.currentRemainingValue = this.vals[0] || 0;
+  }
+
+  BitReader.prototype.read = function (bitCount) {
     var result = 0;
-    for (var i = 0; i < count; i++) {
-      var byteIdx = Math.floor(this.pos / 8);
-      var bitIdx = this.pos % 8;
-      if (byteIdx < this.bytes.length) {
-        var bit = (this.bytes[byteIdx] >> bitIdx) & 1;
-        result |= (bit << i);
+    var bitsNeeded = bitCount;
+    var shift = 0;
+
+    while (bitsNeeded > 0) {
+      if (this.currentIndex >= this.vals.length) return result;
+
+      var availableBits = 6 - this.currentExtractedBits;
+      var bitsToRead = Math.min(availableBits, bitsNeeded);
+
+      this.currentExtractedBits += bitsToRead;
+      var mask = (1 << bitsToRead) - 1;
+      var bits = this.currentRemainingValue & mask;
+      this.currentRemainingValue >>= bitsToRead;
+
+      result += bits << shift;
+      shift += bitsToRead;
+      bitsNeeded -= bitsToRead;
+
+      if (bitsToRead >= availableBits) {
+        this.currentIndex++;
+        this.currentExtractedBits = 0;
+        this.currentRemainingValue = this.vals[this.currentIndex] || 0;
       }
-      this.pos++;
     }
     return result;
   };
 
-  BitReader.prototype.remaining = function () {
-    return (this.bytes.length * 8) - this.pos;
+  BitReader.prototype.hasMore = function () {
+    return this.currentIndex < this.vals.length;
   };
-
-  // ---- Helpers ----
-  function bitsNeeded(maxVal) {
-    if (maxVal <= 1) return 1;
-    return Math.ceil(Math.log2(maxVal + 1));
-  }
-
-  function sortNodes(nodes) {
-    return nodes.slice().sort(function (a, b) {
-      if (a.posY !== b.posY) return a.posY - b.posY;
-      return a.posX - b.posX;
-    });
-  }
-
-  // ---- Decode base64 ----
-  function decodeBase64(str) {
-    str = str.trim();
-    var bytes = [];
-    for (var i = 0; i < str.length; i += 4) {
-      var vals = [];
-      for (var j = i; j < Math.min(i + 4, str.length); j++) {
-        var idx = ALPHABET.indexOf(str[j]);
-        if (idx === -1) throw new Error('Invalid character: "' + str[j] + '"');
-        vals.push(idx);
-      }
-      if (vals.length >= 2) bytes.push(((vals[0]) | (vals[1] << 6)) & 0xFF);
-      if (vals.length >= 3) bytes.push(((vals[1] >> 2) | (vals[2] << 4)) & 0xFF);
-      if (vals.length >= 4) bytes.push(((vals[2] >> 4) | (vals[3] << 2)) & 0xFF);
-    }
-    return new Uint8Array(bytes);
-  }
 
   // ---- Parse header ----
   function parseHeader(reader) {
-    var version = reader.readBits(8);
-    var specId = reader.readBits(16);
-    var hash = [];
+    var version = reader.read(8);
+    var specId = reader.read(16);
+    var treeHash = [];
     for (var i = 0; i < 16; i++) {
-      hash.push(reader.readBits(8));
+      treeHash.push(reader.read(8));
     }
-    return { version: version, specId: specId, treeHash: hash };
+    return { version: version, specId: specId, treeHash: treeHash };
   }
 
-  // ---- Read selections for a list of nodes ----
-  function readTreeNodes(reader, nodes) {
-    var selections = {};
-    var points = 0;
+  // ---- Read all node states ----
+  function readAllNodes(reader, version) {
+    var nodes = [];
+    while (reader.hasMore()) {
+      var isSelected = reader.read(1) === 1;
+      var isPurchased = isSelected;
 
-    for (var i = 0; i < nodes.length; i++) {
-      if (reader.remaining() < 2) break;
+      if (version > 1 && isSelected) {
+        isPurchased = reader.read(1) === 1;
+      }
 
-      var node = nodes[i];
-      var isSelected = reader.readBits(1);
-      var isPartial = reader.readBits(1);
+      var isPartial = false;
+      var partialRanks = 0;
+      var isChoice = false;
+      var choiceIdx = 0;
 
-      if (!isSelected) continue;
-
-      var sel = {
-        nodeId: node.id,
-        rank: node.maxRanks,
-        choiceIndex: 0
-      };
-
-      // Choice node: which entry?
-      if (node.type === 'choice' && node.entries && node.entries.length > 1) {
-        var choiceBits = bitsNeeded(node.entries.length - 1);
-        if (reader.remaining() >= choiceBits) {
-          sel.choiceIndex = reader.readBits(choiceBits);
+      if (isPurchased) {
+        isPartial = reader.read(1) === 1;
+        if (isPartial) {
+          partialRanks = reader.read(6);
+        }
+        isChoice = reader.read(1) === 1;
+        if (isChoice) {
+          choiceIdx = reader.read(2);
         }
       }
 
-      // Partial rank: how many ranks?
-      if (isPartial && node.maxRanks > 1) {
-        var rankBits = bitsNeeded(node.maxRanks - 1);
-        if (reader.remaining() >= rankBits) {
-          sel.rank = reader.readBits(rankBits) + 1;
-        }
-      }
-
-      // Handle tiered nodes (like Shadow of Nathreza with maxRanks:4)
-      if (node.type === 'tiered') {
-        // Tiered nodes: the rank also selects which entry
-        if (node.entries && node.entries.length > 1) {
-          // rank determines which tier entry is active
-          sel.choiceIndex = Math.min(sel.rank - 1, node.entries.length - 1);
-        }
-      }
-
-      selections[node.id] = sel;
-
-      if (!node.freeNode && !node.entryNode) {
-        points += sel.rank;
-      }
+      nodes.push({
+        isSelected: isSelected,
+        isPurchased: isPurchased,
+        isPartial: isPartial,
+        partialRanks: partialRanks,
+        isChoice: isChoice,
+        choiceIdx: choiceIdx
+      });
     }
-
-    return { selections: selections, points: points };
-  }
-
-  // ---- Get unique subTreeIds from hero nodes ----
-  function getSubTreeIds(heroNodes) {
-    var ids = [];
-    var seen = {};
-    for (var i = 0; i < heroNodes.length; i++) {
-      var stId = heroNodes[i].subTreeId;
-      if (stId !== undefined && !seen[stId]) {
-        seen[stId] = true;
-        ids.push(stId);
-      }
-    }
-    ids.sort(function (a, b) { return a - b; });
-    return ids;
+    return nodes;
   }
 
   // ---- Main decode ----
@@ -160,15 +140,18 @@ var TalentDecoder = (function () {
     if (!exportString || exportString.trim().length === 0) {
       throw new Error('Empty talent string');
     }
+    if (!nodeOrderData) {
+      throw new Error('Node order data not loaded. Call TalentDecoder.loadNodeOrder() first.');
+    }
 
-    var bytes = decodeBase64(exportString);
-    var reader = new BitReader(bytes);
+    exportString = exportString.trim();
+    var reader = new BitReader(exportString);
 
     // 1. Header
     var header = parseHeader(reader);
     console.log('[Decoder] version:', header.version, 'specId:', header.specId);
 
-    // 2. Find spec
+    // 2. Find spec in talent data
     var treeData = null;
     for (var i = 0; i < talentData.length; i++) {
       if (talentData[i].specId === header.specId) {
@@ -180,99 +163,143 @@ var TalentDecoder = (function () {
       throw new Error('No talent data for specId ' + header.specId);
     }
 
-    // 3. Sort nodes
-    var classNodes = sortNodes(treeData.classNodes || []);
-    var specNodes = sortNodes(treeData.specNodes || []);
-    var heroNodes = sortNodes(treeData.heroNodes || []);
+    // 3. Get node order for this class
+    var classId = treeData.classId;
+    var orderInfo = nodeOrderData[classId];
+    if (!orderInfo) {
+      throw new Error('No node order data for classId ' + classId);
+    }
+    var nodeOrder = orderInfo.nodes;
+    var heroTreeChoices = orderInfo.heroTreeChoices || {};
 
-    console.log('[Decoder] Class:', treeData.className, treeData.specName);
-    console.log('[Decoder] Nodes — class:', classNodes.length, 'spec:', specNodes.length, 'hero:', heroNodes.length);
+    console.log('[Decoder] Class:', treeData.className, 'Spec:', treeData.specName,
+      'Nodes in order:', nodeOrder.length);
 
-    // 4. Read class tree
-    console.log('[Decoder] Reading class tree at bit:', reader.pos);
-    var classResult = readTreeNodes(reader, classNodes);
-    console.log('[Decoder] Class selections:', Object.keys(classResult.selections).length, 'bits at:', reader.pos);
-
-    // 5. Read spec tree
-    console.log('[Decoder] Reading spec tree at bit:', reader.pos);
-    var specResult = readTreeNodes(reader, specNodes);
-    console.log('[Decoder] Spec selections:', Object.keys(specResult.selections).length, 'bits at:', reader.pos);
-
-    // 6. Read hero tree
-    var heroResult = { selections: {}, points: 0 };
-    var selectedSubTreeId = null;
-    var selectedHeroNodes = heroNodes;
-    var heroTreeData = null;
-
-    if (heroNodes.length > 0 && reader.remaining() > 0) {
-      // Determine sub-trees from subTreeId field
-      var subTreeIds = getSubTreeIds(heroNodes);
-      console.log('[Decoder] Hero subTreeIds:', subTreeIds);
-
-      if (subTreeIds.length > 1) {
-        // Read which sub-tree is selected
-        var stBits = bitsNeeded(subTreeIds.length - 1);
-        console.log('[Decoder] Reading hero subtree selection (' + stBits + ' bits) at bit:', reader.pos);
-        var stIndex = reader.readBits(stBits);
-        selectedSubTreeId = subTreeIds[stIndex] !== undefined ? subTreeIds[stIndex] : subTreeIds[0];
-        console.log('[Decoder] Selected hero subTreeId:', selectedSubTreeId, '(index:', stIndex, ')');
-
-        // Filter hero nodes
-        selectedHeroNodes = [];
-        for (var h = 0; h < heroNodes.length; h++) {
-          if (heroNodes[h].subTreeId === selectedSubTreeId) {
-            selectedHeroNodes.push(heroNodes[h]);
-          }
-        }
-
-        heroTreeData = {
-          subTreeId: selectedSubTreeId,
-          name: getSubTreeName(selectedHeroNodes),
-          nodeIds: selectedHeroNodes.map(function (n) { return n.id; })
-        };
-      } else if (subTreeIds.length === 1) {
-        selectedSubTreeId = subTreeIds[0];
-        heroTreeData = {
-          subTreeId: selectedSubTreeId,
-          name: getSubTreeName(heroNodes),
-          nodeIds: heroNodes.map(function (n) { return n.id; })
-        };
+    // 4. Build lookup: nodeId → talent info
+    var nodeLookup = {};
+    var allTreeNodes = ['classNodes', 'specNodes', 'heroNodes'];
+    for (var t = 0; t < allTreeNodes.length; t++) {
+      var arr = treeData[allTreeNodes[t]] || [];
+      for (var n = 0; n < arr.length; n++) {
+        nodeLookup[arr[n].id] = arr[n];
       }
-
-      console.log('[Decoder] Reading hero tree at bit:', reader.pos, 'nodes:', selectedHeroNodes.length);
-      heroResult = readTreeNodes(reader, selectedHeroNodes);
-      console.log('[Decoder] Hero selections:', Object.keys(heroResult.selections).length, 'bits at:', reader.pos);
     }
 
-    // 7. Summary
-    var totalPoints = classResult.points + specResult.points + heroResult.points;
-    console.log('[Decoder] Total points:', totalPoints);
-    console.log('[Decoder] Bits read:', reader.pos, '/', bytes.length * 8, 'remaining:', reader.remaining());
+    // 5. Read all node states from bitstream
+    var rawNodes = readAllNodes(reader, header.version);
+    console.log('[Decoder] Raw nodes read:', rawNodes.length);
+
+    // 6. Map raw states to node IDs and build selections
+    var classSelections = {};
+    var specSelections = {};
+    var heroSelections = {};
+    var classPoints = 0;
+    var specPoints = 0;
+    var heroPoints = 0;
+    var selectedSubTreeId = null;
+
+    // Detect hero tree from heroTreeChoices
+    for (var idx = 0; idx < rawNodes.length && idx < nodeOrder.length; idx++) {
+      var rn = rawNodes[idx];
+      if (!rn.isSelected) continue;
+
+      var nodeId = nodeOrder[idx];
+      var info = nodeLookup[nodeId];
+
+      // Check if this is a hero tree choice node
+      var htcEntry = heroTreeChoices[nodeId];
+      if (htcEntry && rn.isPurchased) {
+        selectedSubTreeId = htcEntry[rn.choiceIdx] || htcEntry[0];
+        continue; // don't add to selections
+      }
+
+      // Determine rank
+      var rank;
+      if (rn.isPartial) {
+        rank = rn.partialRanks;
+      } else if (rn.isPurchased) {
+        rank = info ? info.maxRanks : 1;
+      } else {
+        // granted (selected but not purchased)
+        rank = info ? info.maxRanks : 1;
+      }
+
+      var sel = {
+        nodeId: nodeId,
+        rank: rank,
+        choiceIndex: rn.isChoice ? rn.choiceIdx : 0
+      };
+
+      // Determine which tree this node belongs to
+      if (!info) {
+        // Unknown node — skip
+        continue;
+      }
+
+      var treeType = info._treeType; // we'll set this below
+      if (treeType === 'class') {
+        classSelections[nodeId] = sel;
+        if (!info.freeNode && rn.isPurchased) classPoints += rank;
+      } else if (treeType === 'spec') {
+        specSelections[nodeId] = sel;
+        if (!info.freeNode && rn.isPurchased) specPoints += rank;
+      } else if (treeType === 'hero') {
+        heroSelections[nodeId] = sel;
+        if (!info.freeNode && rn.isPurchased) heroPoints += rank;
+      }
+    }
+
+    var totalPoints = classPoints + specPoints + heroPoints;
+    console.log('[Decoder] Points — class:', classPoints, 'spec:', specPoints,
+      'hero:', heroPoints, 'total:', totalPoints);
+    console.log('[Decoder] Selected hero tree:', selectedSubTreeId);
+
+    // Build hero tree data
+    var heroTreeData = null;
+    if (selectedSubTreeId) {
+      var heroTreeNodes = (treeData.heroNodes || []).filter(function (n) {
+        return n.subTreeId === selectedSubTreeId;
+      });
+      heroTreeData = {
+        subTreeId: selectedSubTreeId,
+        name: getSubTreeName(heroTreeNodes),
+        nodeIds: heroTreeNodes.map(function (n) { return n.id; })
+      };
+    }
+
+    // Sort nodes for rendering (posY, posX)
+    var classNodesSorted = sortNodes(treeData.classNodes || []);
+    var specNodesSorted = sortNodes(treeData.specNodes || []);
+    var heroNodesSorted = sortNodes(treeData.heroNodes || []);
 
     return {
       header: header,
       treeData: treeData,
       heroTreeData: heroTreeData,
-      classNodes: classNodes,
-      specNodes: specNodes,
-      heroNodes: heroNodes,
-      classSelections: classResult.selections,
-      specSelections: specResult.selections,
-      heroSelections: heroResult.selections,
-      classPoints: classResult.points,
-      specPoints: specResult.points,
-      heroPoints: heroResult.points,
+      classNodes: classNodesSorted,
+      specNodes: specNodesSorted,
+      heroNodes: heroNodesSorted,
+      classSelections: classSelections,
+      specSelections: specSelections,
+      heroSelections: heroSelections,
+      classPoints: classPoints,
+      specPoints: specPoints,
+      heroPoints: heroPoints,
       totalPoints: totalPoints,
       selectedSubTreeId: selectedSubTreeId
     };
   }
 
+  function sortNodes(nodes) {
+    return nodes.slice().sort(function (a, b) {
+      if (a.posY !== b.posY) return a.posY - b.posY;
+      return a.posX - b.posX;
+    });
+  }
+
   function getSubTreeName(nodes) {
-    // Get name from the entry node of this sub-tree
     for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].entryNode) {
-        return nodes[i].name;
-      }
+      if (nodes[i].entryNode) return nodes[i].name;
     }
     return nodes.length > 0 ? nodes[0].name : 'Hero';
   }
@@ -280,8 +307,7 @@ var TalentDecoder = (function () {
   // Public API
   return {
     decode: decode,
-    decodeBase64: decodeBase64,
-    BitReader: BitReader,
+    loadNodeOrder: loadNodeOrder,
     parseHeader: parseHeader
   };
 
