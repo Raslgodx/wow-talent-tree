@@ -5,7 +5,6 @@
 
 var TalentTreeRenderer = (function () {
 
-  /* ── constants ── */
   var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
   var NODE_SIZE   = 40;
   var GRID_X      = 60;
@@ -13,12 +12,14 @@ var TalentTreeRenderer = (function () {
   var PADDING     = 30;
   var heroIconEl  = null;
 
-  /* ── init ── */
   function init() {
     console.log('[Renderer] Initialized');
   }
 
-  /* ── public: render nodes into an SVG element ── */
+  /**
+   * Main render function — called from main.js as:
+   *   renderTree(svgElement, nodesArray, selectionsObject)
+   */
   function renderTree(svgEl, nodes, selections) {
     if (!svgEl) return;
     svgEl.innerHTML = '';
@@ -31,10 +32,8 @@ var TalentTreeRenderer = (function () {
 
     var sel = selections || {};
 
-    /* — normalise positions to grid — */
     var coords = normalizePositions(nodes);
 
-    /* — calculate SVG dimensions — */
     var maxCol = 0, maxRow = 0;
     coords.forEach(function (c) {
       if (c.col > maxCol) maxCol = c.col;
@@ -46,13 +45,12 @@ var TalentTreeRenderer = (function () {
     svgEl.setAttribute('height', svgH);
     svgEl.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
 
-    /* — build id→coord lookup — */
     var coordMap = {};
     nodes.forEach(function (n, i) {
       coordMap[n.id] = coords[i];
     });
 
-    /* — draw connections first (below nodes) — */
+    // Connections
     nodes.forEach(function (node) {
       if (!node.next) return;
       var from = coordMap[node.id];
@@ -67,7 +65,6 @@ var TalentTreeRenderer = (function () {
         var x2 = PADDING + to.col   * GRID_X + NODE_SIZE / 2;
         var y2 = PADDING + to.row   * GRID_Y + NODE_SIZE / 2;
 
-        /* determine if connection is active */
         var fromSel = sel[node.id];
         var toSel   = sel[nextId];
         var connActive = fromSel && toSel;
@@ -80,7 +77,7 @@ var TalentTreeRenderer = (function () {
       });
     });
 
-    /* — draw nodes — */
+    // Nodes
     nodes.forEach(function (node, i) {
       var c = coords[i];
       var x = PADDING + c.col * GRID_X;
@@ -89,7 +86,6 @@ var TalentTreeRenderer = (function () {
     });
   }
 
-  /* ── normalize posX/posY to 0-based column/row ── */
   function normalizePositions(nodes) {
     var xs = [], ys = [];
     nodes.forEach(function (n) {
@@ -107,12 +103,10 @@ var TalentTreeRenderer = (function () {
     });
   }
 
-  /* ── draw a single talent node ── */
   function drawNode(svg, node, x, y, selections) {
     var nodeSel = selections[node.id];
     var isSelected = !!nodeSel;
 
-    /* determine which entry to show (for choice nodes) */
     var entryIndex = 0;
     if (nodeSel && nodeSel.choiceIndex !== undefined && node.entries && node.entries.length > 1) {
       entryIndex = nodeSel.choiceIndex;
@@ -135,7 +129,6 @@ var TalentTreeRenderer = (function () {
       transform: 'translate(' + x + ',' + y + ')'
     });
 
-    /* shape */
     if (isOctagon) {
       var s = NODE_SIZE;
       var c = s * 0.3;
@@ -167,8 +160,7 @@ var TalentTreeRenderer = (function () {
         var img = createSvgElement('image', {
           href: getIconUrl(iconName),
           x: 0, y: 0,
-          width: NODE_SIZE,
-          height: NODE_SIZE,
+          width: NODE_SIZE, height: NODE_SIZE,
           'clip-path': 'url(#' + clipId + ')',
           'class': 'node-icon'
         });
@@ -234,7 +226,6 @@ var TalentTreeRenderer = (function () {
       }
     }
 
-    /* rank badge */
     if (node.maxRanks && node.maxRanks > 1) {
       var currentRank = nodeSel ? nodeSel.rank : 0;
       var badge = createSvgElement('text', {
@@ -250,7 +241,6 @@ var TalentTreeRenderer = (function () {
     svg.appendChild(g);
   }
 
-  /* ── icon URL helper ── */
   function getIconUrl(iconName) {
     if (!iconName) return '';
     var name = iconName.toLowerCase();
@@ -258,7 +248,6 @@ var TalentTreeRenderer = (function () {
     return WOWHEAD_ICON_BASE + name + '.jpg';
   }
 
-  /* ── SVG element helper ── */
   function createSvgElement(tag, attrs) {
     var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
     if (attrs) {
@@ -269,7 +258,6 @@ var TalentTreeRenderer = (function () {
     return el;
   }
 
-  /* ── Hero Tree Icon ── */
   function renderHeroIcon(treeData, selectedSubTreeId) {
     if (heroIconEl) {
       heroIconEl.remove();
@@ -325,7 +313,6 @@ var TalentTreeRenderer = (function () {
     }
   }
 
-  /* ── public API ── */
   return {
     init: init,
     renderTree: renderTree,
