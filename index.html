@@ -3,59 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WoW Talent Tree Viewer</title>
+  <title>WoW Talent Tree</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <div id="app">
-    <div class="header">
-      <h1>WoW Talent Tree Viewer</h1>
-      <div class="input-row">
-        <input type="text" id="talentString" 
-               placeholder="Paste talent export string from WoW..." 
-               value="">
-        <button id="loadBtn">Load Build</button>
-      </div>
-      <div class="tab-bar">
-        <button class="tab active" data-tab="all">All Trees</button>
-        <button class="tab" data-tab="class">Class</button>
-        <button class="tab" data-tab="hero">Hero</button>
-        <button class="tab" data-tab="spec">Spec</button>
-      </div>
-      <div class="info-bar">
-        <span id="className">-</span>
-        <span id="specName">-</span>
-        <span id="heroSpecName">-</span>
-        <span id="pointCount">0 points</span>
-      </div>
-      <div id="errorMsg" class="error-msg"></div>
-    </div>
+    <div id="errorMsg" class="error-msg"></div>
 
     <div class="trees-container" id="treesContainer">
       <div class="tree-panel" id="classTreePanel" data-tree="class">
-        <h2>Class Talents</h2>
         <div class="tree-viewport">
           <svg class="tree-svg" id="classTreeSvg"></svg>
         </div>
       </div>
       <div class="tree-panel" id="heroTreePanel" data-tree="hero">
-        <h2>Hero Talents</h2>
         <div class="tree-viewport">
           <svg class="tree-svg" id="heroTreeSvg"></svg>
         </div>
       </div>
       <div class="tree-panel" id="specTreePanel" data-tree="spec">
-        <h2>Spec Talents</h2>
         <div class="tree-viewport">
           <svg class="tree-svg" id="specTreeSvg"></svg>
         </div>
       </div>
     </div>
 
+    <div class="bottom-bar" id="bottomBar">
+      <button class="copy-btn" id="copyBtn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 11V3C3 2.44772 3.44772 2 4 2H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Copy Build
+      </button>
+    </div>
+
     <div class="tooltip" id="tooltip"></div>
   </div>
 
-  <!-- Load scripts in order (no modules needed) -->
   <script src="js/decoder.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/tooltip.js"></script>
