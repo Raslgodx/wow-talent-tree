@@ -261,6 +261,104 @@ html, body {
   border-color: #4a9;
   color: #4a9;
 }
+/* ===== Custom Wowhead Tooltip ===== */
+.wh-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 99999;
+  max-width: 340px;
+  min-width: 200px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%);
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  color: #ddd;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 209, 0, 0.2);
+  pointer-events: auto;
+  word-wrap: break-word;
+}
+
+.wh-tooltip table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.wh-tooltip td {
+  padding: 2px 0;
+  vertical-align: top;
+}
+
+.wh-tooltip b {
+  color: #fff;
+}
+
+.wh-tooltip .q {
+  color: #ffd100;
+}
+
+.wh-tooltip .q0 {
+  color: #9d9d9d;
+}
+
+.wh-tooltip .q1 {
+  color: #fff;
+}
+
+.wh-tooltip .q2 {
+  color: #1eff00;
+}
+
+.wh-tooltip .q3 {
+  color: #0070dd;
+}
+
+.wh-tooltip .q4 {
+  color: #a335ee;
+}
+
+.wh-tooltip a {
+  color: #4488ff;
+  text-decoration: none;
+}
+
+.wh-tooltip-loading {
+  color: #888;
+  font-style: italic;
+  padding: 8px;
+  text-align: center;
+}
+
+.wh-tooltip-simple {
+  padding: 4px;
+}
+
+.wh-tooltip-simple b {
+  color: #ffd100;
+  font-size: 14px;
+}
+
+/* Wowhead injected tooltip styles */
+.wh-tooltip .whtt-name {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wh-tooltip .whtt-extra {
+  color: #aaa;
+  font-size: 12px;
+}
+
+/* SVG link cursor */
+.talent-link {
+  cursor: pointer;
+}
+.talent-link * {
+  cursor: pointer;
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 1000px) {
