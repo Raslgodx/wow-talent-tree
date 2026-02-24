@@ -1,58 +1,35 @@
 /**
  * renderer.js — SVG-based talent tree renderer
- * Reads talent data, draws nodes + connections on three panels: class, spec, hero
+ * renderTree(svgEl, nodes, selections) — draws nodes + connections into given SVG element
  */
 
 var TalentTreeRenderer = (function () {
 
   /* ── constants ── */
   var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
-  var NODE_SIZE   = 40;   // px – square / circle size
-  var GRID_X      = 60;   // px – horizontal spacing
-  var GRID_Y      = 60;   // px – vertical spacing
-  var PADDING     = 30;   // px – SVG inner padding
+  var NODE_SIZE   = 40;
+  var GRID_X      = 60;
+  var GRID_Y      = 60;
+  var PADDING     = 30;
   var heroIconEl  = null;
-
-  /* ── state ── */
-  var specData   = null;  // full JSON object for current spec
-  var buildState = null;  // optional – which talents are chosen
 
   /* ── init ── */
   function init() {
     console.log('[Renderer] Initialized');
   }
 
-  /* ── public entry point ── */
-  function renderTree(data, state) {
-    specData   = data;
-    buildState = state || null;
-
-    renderPanel('class', specData.classNodes || []);
-    renderPanel('spec',  specData.specNodes  || []);
-    renderPanel('hero',  specData.heroNodes  || []);
-
-    // Render hero icon
-    renderHeroIcon(specData, buildState);
-  }
-
-  /* ── render one panel (class / spec / hero) ── */
-  function renderPanel(panelKey, nodes) {
-    var panel = document.querySelector('.tree-panel[data-tree="' + panelKey + '"]');
-    if (!panel) return;
-
-    var svg = panel.querySelector('svg.talent-tree-svg');
-    if (!svg) {
-      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('class', 'talent-tree-svg');
-      panel.appendChild(svg);
-    }
-    svg.innerHTML = '';
+  /* ── public: render nodes into an SVG element ── */
+  function renderTree(svgEl, nodes, selections) {
+    if (!svgEl) return;
+    svgEl.innerHTML = '';
 
     if (!nodes || nodes.length === 0) {
-      svg.setAttribute('width', 0);
-      svg.setAttribute('height', 0);
+      svgEl.setAttribute('width', 0);
+      svgEl.setAttribute('height', 0);
       return;
     }
+
+    var sel = selections || {};
 
     /* — normalise positions to grid — */
     var coords = normalizePositions(nodes);
@@ -65,9 +42,9 @@ var TalentTreeRenderer = (function () {
     });
     var svgW = maxCol * GRID_X + NODE_SIZE + PADDING * 2;
     var svgH = maxRow * GRID_Y + NODE_SIZE + PADDING * 2;
-    svg.setAttribute('width',  svgW);
-    svg.setAttribute('height', svgH);
-    svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+    svgEl.setAttribute('width',  svgW);
+    svgEl.setAttribute('height', svgH);
+    svgEl.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
 
     /* — build id→coord lookup — */
     var coordMap = {};
@@ -90,11 +67,16 @@ var TalentTreeRenderer = (function () {
         var x2 = PADDING + to.col   * GRID_X + NODE_SIZE / 2;
         var y2 = PADDING + to.row   * GRID_Y + NODE_SIZE / 2;
 
+        /* determine if connection is active */
+        var fromSel = sel[node.id];
+        var toSel   = sel[nextId];
+        var connActive = fromSel && toSel;
+
         var line = createSvgElement('line', {
           x1: x1, y1: y1, x2: x2, y2: y2,
-          'class': 'talent-connection'
+          'class': 'talent-connection' + (connActive ? ' connection-active' : '')
         });
-        svg.appendChild(line);
+        svgEl.appendChild(line);
       });
     });
 
@@ -103,7 +85,7 @@ var TalentTreeRenderer = (function () {
       var c = coords[i];
       var x = PADDING + c.col * GRID_X;
       var y = PADDING + c.row * GRID_Y;
-      drawNode(svg, node, x, y, panelKey);
+      drawNode(svgEl, node, x, y, sel);
     });
   }
 
@@ -126,8 +108,17 @@ var TalentTreeRenderer = (function () {
   }
 
   /* ── draw a single talent node ── */
-  function drawNode(svg, node, x, y, panelKey) {
-    var entry = (node.entries && node.entries[0]) || {};
+  function drawNode(svg, node, x, y, selections) {
+    var nodeSel = selections[node.id];
+    var isSelected = !!nodeSel;
+
+    /* determine which entry to show (for choice nodes) */
+    var entryIndex = 0;
+    if (nodeSel && nodeSel.choiceIndex !== undefined && node.entries && node.entries.length > 1) {
+      entryIndex = nodeSel.choiceIndex;
+    }
+    var entry = (node.entries && node.entries[entryIndex]) || (node.entries && node.entries[0]) || {};
+
     var iconName = entry.icon || '';
     var spellId  = entry.spellId || entry.visibleSpellId || 0;
     var isChoice = (node.type === 'choice');
@@ -137,7 +128,8 @@ var TalentTreeRenderer = (function () {
       'class': 'talent-node'
               + (node.entryNode ? ' entry-node' : '')
               + (isChoice ? ' choice-node' : '')
-              + (entry.type === 'active' ? ' active-talent' : ' passive-talent'),
+              + (entry.type === 'active' ? ' active-talent' : ' passive-talent')
+              + (isSelected ? ' node-selected' : ' node-unselected'),
       'data-node-id':  node.id,
       'data-spell-id': spellId,
       transform: 'translate(' + x + ',' + y + ')'
@@ -163,7 +155,6 @@ var TalentTreeRenderer = (function () {
       });
       g.appendChild(oct);
 
-      /* clip for octagon icon */
       var clipId = 'clip-oct-' + node.id;
       var defs = createSvgElement('defs', {});
       var clip = createSvgElement('clipPath', { id: clipId });
@@ -184,7 +175,6 @@ var TalentTreeRenderer = (function () {
         g.appendChild(img);
       }
     } else if (entry.type === 'active') {
-      /* square with rounded corners */
       var rect = createSvgElement('rect', {
         x: 0, y: 0,
         width: NODE_SIZE, height: NODE_SIZE,
@@ -214,7 +204,6 @@ var TalentTreeRenderer = (function () {
         g.appendChild(rectImg);
       }
     } else {
-      /* circle for passive */
       var circ = createSvgElement('circle', {
         cx: NODE_SIZE / 2,
         cy: NODE_SIZE / 2,
@@ -247,13 +236,14 @@ var TalentTreeRenderer = (function () {
 
     /* rank badge */
     if (node.maxRanks && node.maxRanks > 1) {
+      var currentRank = nodeSel ? nodeSel.rank : 0;
       var badge = createSvgElement('text', {
         x: NODE_SIZE - 2,
         y: NODE_SIZE - 2,
         'class': 'rank-badge',
         'text-anchor': 'end'
       });
-      badge.textContent = '0/' + node.maxRanks;
+      badge.textContent = currentRank + '/' + node.maxRanks;
       g.appendChild(badge);
     }
 
@@ -264,7 +254,6 @@ var TalentTreeRenderer = (function () {
   function getIconUrl(iconName) {
     if (!iconName) return '';
     var name = iconName.toLowerCase();
-    // Fix double underscore → underscore + hyphen (e.g. warlock__bloodstone → warlock_-bloodstone)
     name = name.replace(/__/g, '_-');
     return WOWHEAD_ICON_BASE + name + '.jpg';
   }
@@ -281,57 +270,29 @@ var TalentTreeRenderer = (function () {
   }
 
   /* ── Hero Tree Icon ── */
-  function renderHeroIcon(specData, buildState) {
-    // Remove old icon
+  function renderHeroIcon(treeData, selectedSubTreeId) {
     if (heroIconEl) {
       heroIconEl.remove();
       heroIconEl = null;
     }
 
-    if (!specData || !specData.subTreeNodes || !specData.subTreeNodes[0]) return;
+    if (!treeData || !treeData.subTreeNodes || !treeData.subTreeNodes[0]) return;
 
-    var subTreeNode = specData.subTreeNodes[0];
+    var subTreeNode = treeData.subTreeNodes[0];
     var entries = subTreeNode.entries;
     if (!entries || entries.length < 1) return;
 
-    // Find active hero subTree from buildState
     var activeEntry = null;
 
-    if (buildState && buildState.heroTreeId) {
+    if (selectedSubTreeId !== null && selectedSubTreeId !== undefined) {
       for (var i = 0; i < entries.length; i++) {
-        if (entries[i].traitSubTreeId === buildState.heroTreeId) {
+        if (entries[i].traitSubTreeId === selectedSubTreeId) {
           activeEntry = entries[i];
           break;
         }
       }
     }
 
-    if (!activeEntry && buildState && buildState.heroNodes) {
-      // Find by checking which subTree has allocated nodes
-      var subTreeIds = {};
-      entries.forEach(function (e) {
-        subTreeIds[e.traitSubTreeId] = { entry: e, count: 0 };
-      });
-
-      specData.heroNodes.forEach(function (node) {
-        if (node.subTreeId && subTreeIds[node.subTreeId]) {
-          var nodeState = buildState.heroNodes[node.id];
-          if (nodeState && nodeState.ranks > 0) {
-            subTreeIds[node.subTreeId].count++;
-          }
-        }
-      });
-
-      var maxCount = 0;
-      Object.keys(subTreeIds).forEach(function (id) {
-        if (subTreeIds[id].count > maxCount) {
-          maxCount = subTreeIds[id].count;
-          activeEntry = subTreeIds[id].entry;
-        }
-      });
-    }
-
-    // Fallback to first entry
     if (!activeEntry) {
       activeEntry = entries[0];
     }
@@ -341,11 +302,9 @@ var TalentTreeRenderer = (function () {
 
     var imgSrc = 'images/hero/' + atlas + '.png';
 
-    // Find hero panel
-    var heroPanel = document.querySelector('.tree-panel-hero');
+    var heroPanel = document.getElementById('heroTreePanel');
     if (!heroPanel) return;
 
-    // Create icon container
     heroIconEl = document.createElement('div');
     heroIconEl.className = 'hero-tree-icon';
 
@@ -358,8 +317,12 @@ var TalentTreeRenderer = (function () {
 
     heroIconEl.appendChild(img);
 
-    // Insert before SVG
-    heroPanel.insertBefore(heroIconEl, heroPanel.firstChild);
+    var svgEl = heroPanel.querySelector('svg');
+    if (svgEl) {
+      heroPanel.insertBefore(heroIconEl, svgEl);
+    } else {
+      heroPanel.insertBefore(heroIconEl, heroPanel.firstChild);
+    }
   }
 
   /* ── public API ── */
