@@ -9,6 +9,62 @@
   var currentMode = null;
   var currentString = null;
 
+  // Background images per specId — fill these in with your own image paths
+  var specBackgrounds = {
+    // Warlock
+    265: 'images/bg/warlock-affliction.jpg',
+    266: 'images/bg/warlock-demonology.jpg',
+    267: 'images/bg/warlock-destruction.jpg',
+    // Warrior
+    71: 'images/bg/warrior-arms.jpg',
+    72: 'images/bg/warrior-fury.jpg',
+    73: 'images/bg/warrior-protection.jpg',
+    // Paladin
+    65: 'images/bg/paladin-holy.jpg',
+    66: 'images/bg/paladin-protection.jpg',
+    70: 'images/bg/paladin-retribution.jpg',
+    // Hunter
+    253: 'images/bg/hunter-bm.jpg',
+    254: 'images/bg/hunter-marksmanship.jpg',
+    255: 'images/bg/hunter-survival.jpg',
+    // Rogue
+    259: 'images/bg/rogue-assassination.jpg',
+    260: 'images/bg/rogue-outlaw.jpg',
+    261: 'images/bg/rogue-subtlety.jpg',
+    // Priest
+    256: 'images/bg/priest-discipline.jpg',
+    257: 'images/bg/priest-holy.jpg',
+    258: 'images/bg/priest-shadow.jpg',
+    // Death Knight
+    250: 'images/bg/dk-blood.jpg',
+    251: 'images/bg/dk-frost.jpg',
+    252: 'images/bg/dk-unholy.jpg',
+    // Shaman
+    262: 'images/bg/shaman-elemental.jpg',
+    263: 'images/bg/shaman-enhancement.jpg',
+    264: 'images/bg/shaman-restoration.jpg',
+    // Mage
+    62: 'images/bg/mage-arcane.jpg',
+    63: 'images/bg/mage-fire.jpg',
+    64: 'images/bg/mage-frost.jpg',
+    // Monk
+    268: 'images/bg/monk-brewmaster.jpg',
+    270: 'images/bg/monk-mistweaver.jpg',
+    269: 'images/bg/monk-windwalker.jpg',
+    // Druid
+    102: 'images/bg/druid-balance.jpg',
+    103: 'images/bg/druid-feral.jpg',
+    104: 'images/bg/druid-guardian.jpg',
+    105: 'images/bg/druid-restoration.jpg',
+    // Demon Hunter
+    577: 'images/bg/dh-havoc.jpg',
+    581: 'images/bg/dh-vengeance.jpg',
+    // Evoker
+    1467: 'images/bg/evoker-devastation.jpg',
+    1468: 'images/bg/evoker-preservation.jpg',
+    1473: 'images/bg/evoker-augmentation.jpg'
+  };
+
   function loadTalentData(callback) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'data/talents.json', true);
@@ -17,7 +73,6 @@
         if (xhr.status === 200 || xhr.status === 0) {
           try {
             var data = JSON.parse(xhr.responseText);
-            // Tag each node with its tree type for the decoder
             for (var i = 0; i < data.length; i++) {
               var spec = data[i];
               var tagNodes = function (arr, type) {
@@ -75,7 +130,6 @@
       if (filtered.length > 0) return filtered;
     }
 
-    // Fallback: use heroTreeData nodeIds
     if (result.heroTreeData && result.heroTreeData.nodeIds) {
       var idSet = {};
       for (var j = 0; j < result.heroTreeData.nodeIds.length; j++) {
@@ -93,6 +147,45 @@
     return result.heroNodes;
   }
 
+  function setSpecBackground(specId) {
+    var bgEl = document.getElementById('specBackground');
+    if (!bgEl) return;
+
+    var bgPath = specBackgrounds[specId];
+    if (bgPath) {
+      bgEl.style.backgroundImage = 'url("' + bgPath + '")';
+    } else {
+      bgEl.style.backgroundImage = 'none';
+    }
+  }
+
+  function updateHeaders(result) {
+    // Hero tree name
+    var heroName = document.getElementById('heroTreeName');
+    if (heroName) {
+      if (result.heroTreeData && result.heroTreeData.name) {
+        heroName.textContent = result.heroTreeData.name;
+      } else {
+        heroName.textContent = 'Hero';
+      }
+    }
+
+    // Spec tree name
+    var specName = document.getElementById('specTreeName');
+    if (specName && result.treeData) {
+      specName.textContent = result.treeData.specName || 'Spec';
+    }
+
+    // Points
+    var classPointsEl = document.getElementById('classPoints');
+    var heroPointsEl = document.getElementById('heroPoints');
+    var specPointsEl = document.getElementById('specPoints');
+
+    if (classPointsEl) classPointsEl.textContent = result.classPoints + ' pts';
+    if (heroPointsEl) heroPointsEl.textContent = result.heroPoints + ' pts';
+    if (specPointsEl) specPointsEl.textContent = result.specPoints + ' pts';
+  }
+
   function loadBuild(mode, exportString) {
     clearError();
     currentMode = mode;
@@ -105,6 +198,8 @@
 
     try {
       currentResult = TalentDecoder.decode(exportString, talentData);
+      setSpecBackground(currentResult.header.specId);
+      updateHeaders(currentResult);
       applyView();
     } catch (e) {
       console.error('Decode error:', e);
@@ -165,12 +260,11 @@
       r.heroSelections
     );
 
-    // Debug output
     console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
     console.log('[Render] Spec selected:', Object.keys(r.specSelections).length);
     console.log('[Render] Hero nodes shown:', heroNodes.length, 'selected:', Object.keys(r.heroSelections).length);
 
-    // Refresh Wowhead tooltips
+    // Refresh Wowhead tooltips for /ru/ locale
     setTimeout(function () {
       if (window.$WowheadPower && window.$WowheadPower.refreshLinks) {
         window.$WowheadPower.refreshLinks();
@@ -242,14 +336,12 @@
   }
 
   function init() {
-    // Load both data files in sequence, then start the app
     loadTalentData(function (err) {
       if (err) {
         showError(err);
         return;
       }
 
-      // Load node order data (from Wowhead), then proceed
       TalentDecoder.loadNodeOrder(function (err2) {
         if (err2) {
           showError(err2);
@@ -258,7 +350,6 @@
 
         console.log('Node order data loaded successfully');
         initCopyButton();
-        TalentTooltip.init();
 
         var urlData = parseUrl();
         if (urlData) {
