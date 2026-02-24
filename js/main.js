@@ -12,8 +12,8 @@
 
   var talentData = null;
   var currentResult = null;
-  var currentMode = null;     // 'all', 'class', 'hero', 'spec'
-  var currentString = null;   // the export string
+  var currentMode = null;
+  var currentString = null;
 
   // ---- Load talent JSON ----
   function loadTalentData(callback) {
@@ -37,7 +37,7 @@
     xhr.send();
   }
 
-  // ---- Parse URL to get mode and string ----
+  // ---- Parse URL ----
   function parseUrl() {
     var params = new URLSearchParams(window.location.search);
     var modes = ['all', 'class', 'hero', 'spec'];
@@ -49,13 +49,78 @@
       }
     }
 
-    // Fallback: check old ?t= format
     var t = params.get('t') || params.get('talents') || '';
     if (t.trim().length > 0) {
       return { mode: 'all', str: t.trim() };
     }
 
     return null;
+  }
+
+  // ---- Get hero nodes for the selected hero tree only ----
+  function getSelectedHeroNodes(result) {
+    if (!result) return [];
+
+    var heroNodes = result.heroNodes || [];
+
+    // If we know which hero tree was selected, filter to only those nodes
+    if (result.heroTreeData && result.heroTreeData.nodeIds && result.heroTreeData.nodeIds.length > 0) {
+      var idSet = {};
+      for (var i = 0; i < result.heroTreeData.nodeIds.length; i++) {
+        idSet[result.heroTreeData.nodeIds[i]] = true;
+      }
+      var filtered = [];
+      for (var j = 0; j < heroNodes.length; j++) {
+        if (idSet[heroNodes[j].id]) {
+          filtered.push(heroNodes[j]);
+        }
+      }
+      return filtered;
+    }
+
+    // Fallback: if no heroTreeData, try to figure out which tree based on selections
+    if (result.heroSelections && Object.keys(result.heroSelections).length > 0) {
+      var selectedIds = result.heroSelections;
+      var treeData = result.treeData;
+
+      if (treeData.heroTrees && treeData.heroTrees.length > 1) {
+        // Find which hero tree has the most selected nodes
+        var bestTree = null;
+        var bestCount = -1;
+
+        for (var t = 0; t < treeData.heroTrees.length; t++) {
+          var ht = treeData.heroTrees[t];
+          var count = 0;
+          if (ht.nodeIds) {
+            for (var k = 0; k < ht.nodeIds.length; k++) {
+              if (selectedIds[ht.nodeIds[k]]) {
+                count++;
+              }
+            }
+          }
+          if (count > bestCount) {
+            bestCount = count;
+            bestTree = ht;
+          }
+        }
+
+        if (bestTree && bestTree.nodeIds) {
+          var bestIdSet = {};
+          for (var m = 0; m < bestTree.nodeIds.length; m++) {
+            bestIdSet[bestTree.nodeIds[m]] = true;
+          }
+          var bestFiltered = [];
+          for (var n = 0; n < heroNodes.length; n++) {
+            if (bestIdSet[heroNodes[n].id]) {
+              bestFiltered.push(heroNodes[n]);
+            }
+          }
+          return bestFiltered;
+        }
+      }
+    }
+
+    return heroNodes;
   }
 
   // ---- Decode and render ----
@@ -78,7 +143,7 @@
     }
   }
 
-  // ---- Apply view mode (show/hide panels) ----
+  // ---- Apply view ----
   function applyView() {
     if (!currentResult) return;
 
@@ -98,12 +163,10 @@
     bottomBar.classList.remove('visible');
 
     if (currentMode === 'all') {
-      // Show all three + copy button
       container.classList.remove('single-view');
       bottomBar.classList.add('visible');
       renderAllTrees();
     } else {
-      // Single tree view
       container.classList.add('single-view');
 
       if (currentMode === 'class') {
@@ -131,24 +194,17 @@
     var specSvg = document.getElementById('specTreeSvg');
     TreeRenderer.render(specSvg, r.specNodes, r.specSelections);
 
-    // Hero tree
+    // Hero tree — only the selected hero tree
     var heroSvg = document.getElementById('heroTreeSvg');
-    var heroNodes = r.heroNodes;
-
-    if (r.heroTreeData && r.heroTreeData.nodeIds) {
-      var idSet = {};
-      for (var i = 0; i < r.heroTreeData.nodeIds.length; i++) {
-        idSet[r.heroTreeData.nodeIds[i]] = true;
-      }
-      heroNodes = [];
-      for (var j = 0; j < r.heroNodes.length; j++) {
-        if (idSet[r.heroNodes[j].id]) {
-          heroNodes.push(r.heroNodes[j]);
-        }
-      }
-    }
-
+    var heroNodes = getSelectedHeroNodes(r);
     TreeRenderer.render(heroSvg, heroNodes, r.heroSelections);
+
+    // Trigger Wowhead tooltip refresh after render
+    setTimeout(function () {
+      if (window.$WowheadPower && window.$WowheadPower.refreshLinks) {
+        window.$WowheadPower.refreshLinks();
+      }
+    }, 500);
   }
 
   // ---- Copy button ----
@@ -159,7 +215,6 @@
     btn.addEventListener('click', function () {
       if (!currentString) return;
 
-      // Copy to clipboard
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(currentString).then(function () {
           showCopied(btn);
@@ -199,7 +254,7 @@
     }, 2000);
   }
 
-  // ---- Error display ----
+  // ---- Error ----
   function showError(msg) {
     var el = document.getElementById('errorMsg');
     if (el) el.textContent = msg;
@@ -210,7 +265,7 @@
     if (el) el.textContent = '';
   }
 
-  // ---- Show empty state ----
+  // ---- Empty state ----
   function showEmpty() {
     var container = document.getElementById('treesContainer');
     container.innerHTML = '<div style="text-align:center;color:#4a4a6a;padding:60px 20px;font-size:15px;">' +
@@ -232,7 +287,6 @@
       initCopyButton();
       TalentTooltip.init();
 
-      // Parse URL
       var urlData = parseUrl();
       if (urlData) {
         loadBuild(urlData.mode, urlData.str);
