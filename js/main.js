@@ -1,11 +1,5 @@
 /**
  * Main application — URL-driven talent tree viewer
- *
- * URL formats:
- *   ?all=EXPORT_STRING    — show all 3 trees + copy button
- *   ?class=EXPORT_STRING  — show only class tree
- *   ?hero=EXPORT_STRING   — show only hero tree
- *   ?spec=EXPORT_STRING   — show only spec tree
  */
 
 (function () {
@@ -15,7 +9,6 @@
   var currentMode = null;
   var currentString = null;
 
-  // ---- Load talent JSON ----
   function loadTalentData(callback) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'data/talents.json', true);
@@ -37,93 +30,55 @@
     xhr.send();
   }
 
-  // ---- Parse URL ----
   function parseUrl() {
     var params = new URLSearchParams(window.location.search);
     var modes = ['all', 'class', 'hero', 'spec'];
-
     for (var i = 0; i < modes.length; i++) {
       var val = params.get(modes[i]);
       if (val && val.trim().length > 0) {
         return { mode: modes[i], str: val.trim() };
       }
     }
-
     var t = params.get('t') || params.get('talents') || '';
     if (t.trim().length > 0) {
       return { mode: 'all', str: t.trim() };
     }
-
     return null;
   }
 
-  // ---- Get hero nodes for the selected hero tree only ----
   function getSelectedHeroNodes(result) {
-    if (!result) return [];
+    if (!result || !result.heroNodes) return [];
 
-    var heroNodes = result.heroNodes || [];
+    var subTreeId = result.selectedSubTreeId;
 
-    // If we know which hero tree was selected, filter to only those nodes
-    if (result.heroTreeData && result.heroTreeData.nodeIds && result.heroTreeData.nodeIds.length > 0) {
-      var idSet = {};
-      for (var i = 0; i < result.heroTreeData.nodeIds.length; i++) {
-        idSet[result.heroTreeData.nodeIds[i]] = true;
-      }
+    if (subTreeId !== null && subTreeId !== undefined) {
       var filtered = [];
-      for (var j = 0; j < heroNodes.length; j++) {
-        if (idSet[heroNodes[j].id]) {
-          filtered.push(heroNodes[j]);
+      for (var i = 0; i < result.heroNodes.length; i++) {
+        if (result.heroNodes[i].subTreeId === subTreeId) {
+          filtered.push(result.heroNodes[i]);
         }
       }
-      return filtered;
+      if (filtered.length > 0) return filtered;
     }
 
-    // Fallback: if no heroTreeData, try to figure out which tree based on selections
-    if (result.heroSelections && Object.keys(result.heroSelections).length > 0) {
-      var selectedIds = result.heroSelections;
-      var treeData = result.treeData;
-
-      if (treeData.heroTrees && treeData.heroTrees.length > 1) {
-        // Find which hero tree has the most selected nodes
-        var bestTree = null;
-        var bestCount = -1;
-
-        for (var t = 0; t < treeData.heroTrees.length; t++) {
-          var ht = treeData.heroTrees[t];
-          var count = 0;
-          if (ht.nodeIds) {
-            for (var k = 0; k < ht.nodeIds.length; k++) {
-              if (selectedIds[ht.nodeIds[k]]) {
-                count++;
-              }
-            }
-          }
-          if (count > bestCount) {
-            bestCount = count;
-            bestTree = ht;
-          }
-        }
-
-        if (bestTree && bestTree.nodeIds) {
-          var bestIdSet = {};
-          for (var m = 0; m < bestTree.nodeIds.length; m++) {
-            bestIdSet[bestTree.nodeIds[m]] = true;
-          }
-          var bestFiltered = [];
-          for (var n = 0; n < heroNodes.length; n++) {
-            if (bestIdSet[heroNodes[n].id]) {
-              bestFiltered.push(heroNodes[n]);
-            }
-          }
-          return bestFiltered;
+    // Fallback: use heroTreeData nodeIds
+    if (result.heroTreeData && result.heroTreeData.nodeIds) {
+      var idSet = {};
+      for (var j = 0; j < result.heroTreeData.nodeIds.length; j++) {
+        idSet[result.heroTreeData.nodeIds[j]] = true;
+      }
+      var filtered2 = [];
+      for (var k = 0; k < result.heroNodes.length; k++) {
+        if (idSet[result.heroNodes[k].id]) {
+          filtered2.push(result.heroNodes[k]);
         }
       }
+      if (filtered2.length > 0) return filtered2;
     }
 
-    return heroNodes;
+    return result.heroNodes;
   }
 
-  // ---- Decode and render ----
   function loadBuild(mode, exportString) {
     clearError();
     currentMode = mode;
@@ -134,12 +89,8 @@
       return;
     }
 
-       try {
+    try {
       currentResult = TalentDecoder.decode(exportString, talentData);
-
-      // DEBUG — remove after calibration
-      TalentDebug.run(exportString, talentData);
-
       applyView();
     } catch (e) {
       console.error('Decode error:', e);
@@ -147,7 +98,6 @@
     }
   }
 
-  // ---- Apply view ----
   function applyView() {
     if (!currentResult) return;
 
@@ -158,7 +108,6 @@
     var bottomBar = document.getElementById('bottomBar');
     var panels = [classPanel, heroPanel, specPanel];
 
-    // Reset
     container.classList.remove('single-view');
     for (var i = 0; i < panels.length; i++) {
       panels[i].classList.remove('visible');
@@ -172,38 +121,42 @@
       renderAllTrees();
     } else {
       container.classList.add('single-view');
-
-      if (currentMode === 'class') {
-        classPanel.classList.add('visible');
-      } else if (currentMode === 'hero') {
-        heroPanel.classList.add('visible');
-      } else if (currentMode === 'spec') {
-        specPanel.classList.add('visible');
-      }
-
+      if (currentMode === 'class') classPanel.classList.add('visible');
+      else if (currentMode === 'hero') heroPanel.classList.add('visible');
+      else if (currentMode === 'spec') specPanel.classList.add('visible');
       renderAllTrees();
     }
   }
 
-  // ---- Render all trees ----
   function renderAllTrees() {
     if (!currentResult) return;
     var r = currentResult;
 
-    // Class tree
-    var classSvg = document.getElementById('classTreeSvg');
-    TreeRenderer.render(classSvg, r.classNodes, r.classSelections);
+    TreeRenderer.render(
+      document.getElementById('classTreeSvg'),
+      r.classNodes,
+      r.classSelections
+    );
 
-    // Spec tree
-    var specSvg = document.getElementById('specTreeSvg');
-    TreeRenderer.render(specSvg, r.specNodes, r.specSelections);
+    TreeRenderer.render(
+      document.getElementById('specTreeSvg'),
+      r.specNodes,
+      r.specSelections
+    );
 
-    // Hero tree — only the selected hero tree
-    var heroSvg = document.getElementById('heroTreeSvg');
     var heroNodes = getSelectedHeroNodes(r);
-    TreeRenderer.render(heroSvg, heroNodes, r.heroSelections);
+    TreeRenderer.render(
+      document.getElementById('heroTreeSvg'),
+      heroNodes,
+      r.heroSelections
+    );
 
-    // Trigger Wowhead tooltip refresh after render
+    // Debug output
+    console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
+    console.log('[Render] Spec selected:', Object.keys(r.specSelections).length);
+    console.log('[Render] Hero nodes shown:', heroNodes.length, 'selected:', Object.keys(r.heroSelections).length);
+
+    // Refresh Wowhead tooltips
     setTimeout(function () {
       if (window.$WowheadPower && window.$WowheadPower.refreshLinks) {
         window.$WowheadPower.refreshLinks();
@@ -211,7 +164,6 @@
     }, 500);
   }
 
-  // ---- Copy button ----
   function initCopyButton() {
     var btn = document.getElementById('copyBtn');
     if (!btn) return;
@@ -241,24 +193,20 @@
     try {
       document.execCommand('copy');
       showCopied(btn);
-    } catch (e) {
-      console.error('Copy failed:', e);
-    }
+    } catch (e) { }
     document.body.removeChild(textarea);
   }
 
   function showCopied(btn) {
-    var originalText = btn.innerHTML;
+    var orig = btn.innerHTML;
     btn.classList.add('copied');
     btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!';
-
     setTimeout(function () {
       btn.classList.remove('copied');
-      btn.innerHTML = originalText;
+      btn.innerHTML = orig;
     }, 2000);
   }
 
-  // ---- Error ----
   function showError(msg) {
     var el = document.getElementById('errorMsg');
     if (el) el.textContent = msg;
@@ -269,7 +217,6 @@
     if (el) el.textContent = '';
   }
 
-  // ---- Empty state ----
   function showEmpty() {
     var container = document.getElementById('treesContainer');
     container.innerHTML = '<div style="text-align:center;color:#4a4a6a;padding:60px 20px;font-size:15px;">' +
@@ -280,14 +227,12 @@
       '</code></div>';
   }
 
-  // ---- Init ----
   function init() {
     loadTalentData(function (err) {
       if (err) {
         showError(err);
         return;
       }
-
       initCopyButton();
       TalentTooltip.init();
 
