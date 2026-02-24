@@ -172,6 +172,13 @@ var TalentDecoder = (function () {
     var nodeOrder = orderInfo.nodes;
     var heroTreeChoices = orderInfo.heroTreeChoices || {};
 
+    // Build set of heroTreeChoice node IDs for quick lookup
+    var heroChoiceNodeIds = {};
+    var heroChoiceKeys = Object.keys(heroTreeChoices);
+    for (var hc = 0; hc < heroChoiceKeys.length; hc++) {
+      heroChoiceNodeIds[parseInt(heroChoiceKeys[hc])] = true;
+    }
+
     console.log('[Decoder] Class:', treeData.className, 'Spec:', treeData.specName,
       'Nodes in order:', nodeOrder.length);
 
@@ -196,21 +203,25 @@ var TalentDecoder = (function () {
     var classPoints = 0;
     var specPoints = 0;
     var heroPoints = 0;
-    var selectedSubTreeId = null;
 
-    // Detect hero tree from heroTreeChoices
+    // Collect selected hero node IDs to determine active subTreeId
+    var selectedHeroNodeIds = [];
+
     for (var idx = 0; idx < rawNodes.length && idx < nodeOrder.length; idx++) {
       var rn = rawNodes[idx];
       if (!rn.isSelected) continue;
 
       var nodeId = nodeOrder[idx];
-      var info = nodeLookup[nodeId];
 
-      // Check if this is a hero tree choice node
-      var htcEntry = heroTreeChoices[nodeId];
-      if (htcEntry && rn.isPurchased) {
-        selectedSubTreeId = htcEntry[rn.choiceIdx] || htcEntry[0];
-        continue; // don't add to selections
+      // Skip hero tree choice nodes (they're not real talent nodes)
+      if (heroChoiceNodeIds[nodeId]) {
+        continue;
+      }
+
+      var info = nodeLookup[nodeId];
+      if (!info) {
+        // Unknown node — not in this spec's talent data, skip
+        continue;
       }
 
       // Determine rank
@@ -218,10 +229,10 @@ var TalentDecoder = (function () {
       if (rn.isPartial) {
         rank = rn.partialRanks;
       } else if (rn.isPurchased) {
-        rank = info ? info.maxRanks : 1;
+        rank = info.maxRanks || 1;
       } else {
-        // granted (selected but not purchased)
-        rank = info ? info.maxRanks : 1;
+        // granted (selected but not purchased) = full rank
+        rank = info.maxRanks || 1;
       }
 
       var sel = {
@@ -231,12 +242,7 @@ var TalentDecoder = (function () {
       };
 
       // Determine which tree this node belongs to
-      if (!info) {
-        // Unknown node — skip
-        continue;
-      }
-
-      var treeType = info._treeType; // we'll set this below
+      var treeType = info._treeType;
       if (treeType === 'class') {
         classSelections[nodeId] = sel;
         if (!info.freeNode && rn.isPurchased) classPoints += rank;
@@ -246,24 +252,63 @@ var TalentDecoder = (function () {
       } else if (treeType === 'hero') {
         heroSelections[nodeId] = sel;
         if (!info.freeNode && rn.isPurchased) heroPoints += rank;
+        selectedHeroNodeIds.push(nodeId);
+      }
+    }
+
+    // 7. Determine active hero subTreeId from selected hero nodes
+    var selectedSubTreeId = null;
+    if (selectedHeroNodeIds.length > 0) {
+      // Count how many selected nodes belong to each subTreeId
+      var subTreeCounts = {};
+      for (var sh = 0; sh < selectedHeroNodeIds.length; sh++) {
+        var heroInfo = nodeLookup[selectedHeroNodeIds[sh]];
+        if (heroInfo && heroInfo.subTreeId !== undefined) {
+          var stId = heroInfo.subTreeId;
+          subTreeCounts[stId] = (subTreeCounts[stId] || 0) + 1;
+        }
+      }
+      // Pick the subTreeId with the most selected nodes
+      var bestCount = 0;
+      var stKeys = Object.keys(subTreeCounts);
+      for (var sc = 0; sc < stKeys.length; sc++) {
+        if (subTreeCounts[stKeys[sc]] > bestCount) {
+          bestCount = subTreeCounts[stKeys[sc]];
+          selectedSubTreeId = parseInt(stKeys[sc]);
+        }
+      }
+      console.log('[Decoder] Hero subTree counts:', JSON.stringify(subTreeCounts),
+        '→ selected:', selectedSubTreeId);
+    }
+
+    // Also check granted (free) hero nodes to detect subTree even with minimal builds
+    if (selectedSubTreeId === null) {
+      var heroNodes = treeData.heroNodes || [];
+      for (var fn = 0; fn < heroNodes.length; fn++) {
+        var hn = heroNodes[fn];
+        if (hn.freeNode && hn.entryNode && heroSelections[hn.id]) {
+          selectedSubTreeId = hn.subTreeId;
+          console.log('[Decoder] Detected hero subTree from free entry node:', selectedSubTreeId);
+          break;
+        }
       }
     }
 
     var totalPoints = classPoints + specPoints + heroPoints;
     console.log('[Decoder] Points — class:', classPoints, 'spec:', specPoints,
       'hero:', heroPoints, 'total:', totalPoints);
-    console.log('[Decoder] Selected hero tree:', selectedSubTreeId);
+    console.log('[Decoder] Selected hero subTreeId:', selectedSubTreeId);
 
     // Build hero tree data
     var heroTreeData = null;
-    if (selectedSubTreeId) {
-      var heroTreeNodes = (treeData.heroNodes || []).filter(function (n) {
-        return n.subTreeId === selectedSubTreeId;
+    if (selectedSubTreeId !== null) {
+      var heroTreeNodes = (treeData.heroNodes || []).filter(function (nd) {
+        return nd.subTreeId === selectedSubTreeId;
       });
       heroTreeData = {
         subTreeId: selectedSubTreeId,
         name: getSubTreeName(heroTreeNodes),
-        nodeIds: heroTreeNodes.map(function (n) { return n.id; })
+        nodeIds: heroTreeNodes.map(function (nd) { return nd.id; })
       };
     }
 
