@@ -1,304 +1,372 @@
 /**
- * Tree Renderer — draws talent trees into SVG
- * Icons from Wowhead CDN
- * Choice nodes rendered as octagon
+ * renderer.js — SVG-based talent tree renderer
+ * Reads talent data, draws nodes + connections on three panels: class, spec, hero
  */
 
-var TreeRenderer = (function () {
+var TalentTreeRenderer = (function () {
 
-  var ICON_SIZE = 32;
-  var NODE_GAP_X = 48;
-  var NODE_GAP_Y = 52;
-  var PADDING_X = 24;
-  var PADDING_TOP = 16;
-  var PADDING_BOTTOM = 28;
-  var RANK_OFFSET_Y = 18;
-  var OCTAGON_SIZE = 19;
-
+  /* ── constants ── */
   var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
+  var NODE_SIZE   = 40;   // px – square / circle size
+  var GRID_X      = 60;   // px – horizontal spacing
+  var GRID_Y      = 60;   // px – vertical spacing
+  var PADDING     = 30;   // px – SVG inner padding
+  var heroIconEl  = null;
 
-   function getIconUrl(iconName) {
-    if (!iconName) return '';
-    // Fix known icon name mismatches between talents.json and Wowhead CDN
-    var name = iconName.toLowerCase();
-    // Double underscore → underscore + hyphen (e.g. warlock__bloodstone → warlock_-bloodstone)
-    name = name.replace(/__/g, '_-');
-    return WOWHEAD_ICON_BASE + name + '.jpg';
+  /* ── state ── */
+  var specData   = null;  // full JSON object for current spec
+  var buildState = null;  // optional – which talents are chosen
+
+  /* ── init ── */
+  function init() {
+    console.log('[Renderer] Initialized');
   }
 
-  function octagonPoints(cx, cy, r) {
-    var pts = [];
-    for (var i = 0; i < 8; i++) {
-      var angle = (Math.PI * 2 * i / 8) - Math.PI / 8;
-      pts.push(
-        (cx + r * Math.cos(angle)).toFixed(2) + ',' +
-        (cy + r * Math.sin(angle)).toFixed(2)
-      );
+  /* ── public entry point ── */
+  function renderTree(data, state) {
+    specData   = data;
+    buildState = state || null;
+
+    renderPanel('class', specData.classNodes || []);
+    renderPanel('spec',  specData.specNodes  || []);
+    renderPanel('hero',  specData.heroNodes  || []);
+
+    // Render hero icon
+    renderHeroIcon(specData, buildState);
+  }
+
+  /* ── render one panel (class / spec / hero) ── */
+  function renderPanel(panelKey, nodes) {
+    var panel = document.querySelector('.tree-panel[data-tree="' + panelKey + '"]');
+    if (!panel) return;
+
+    var svg = panel.querySelector('svg.talent-tree-svg');
+    if (!svg) {
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'talent-tree-svg');
+      panel.appendChild(svg);
     }
-    return pts.join(' ');
+    svg.innerHTML = '';
+
+    if (!nodes || nodes.length === 0) {
+      svg.setAttribute('width', 0);
+      svg.setAttribute('height', 0);
+      return;
+    }
+
+    /* — normalise positions to grid — */
+    var coords = normalizePositions(nodes);
+
+    /* — calculate SVG dimensions — */
+    var maxCol = 0, maxRow = 0;
+    coords.forEach(function (c) {
+      if (c.col > maxCol) maxCol = c.col;
+      if (c.row > maxRow) maxRow = c.row;
+    });
+    var svgW = maxCol * GRID_X + NODE_SIZE + PADDING * 2;
+    var svgH = maxRow * GRID_Y + NODE_SIZE + PADDING * 2;
+    svg.setAttribute('width',  svgW);
+    svg.setAttribute('height', svgH);
+    svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+
+    /* — build id→coord lookup — */
+    var coordMap = {};
+    nodes.forEach(function (n, i) {
+      coordMap[n.id] = coords[i];
+    });
+
+    /* — draw connections first (below nodes) — */
+    nodes.forEach(function (node) {
+      if (!node.next) return;
+      var from = coordMap[node.id];
+      if (!from) return;
+
+      node.next.forEach(function (nextId) {
+        var to = coordMap[nextId];
+        if (!to) return;
+
+        var x1 = PADDING + from.col * GRID_X + NODE_SIZE / 2;
+        var y1 = PADDING + from.row * GRID_Y + NODE_SIZE / 2;
+        var x2 = PADDING + to.col   * GRID_X + NODE_SIZE / 2;
+        var y2 = PADDING + to.row   * GRID_Y + NODE_SIZE / 2;
+
+        var line = createSvgElement('line', {
+          x1: x1, y1: y1, x2: x2, y2: y2,
+          'class': 'talent-connection'
+        });
+        svg.appendChild(line);
+      });
+    });
+
+    /* — draw nodes — */
+    nodes.forEach(function (node, i) {
+      var c = coords[i];
+      var x = PADDING + c.col * GRID_X;
+      var y = PADDING + c.row * GRID_Y;
+      drawNode(svg, node, x, y, panelKey);
+    });
   }
 
+  /* ── normalize posX/posY to 0-based column/row ── */
   function normalizePositions(nodes) {
-    if (!nodes || nodes.length === 0) return { items: [], cols: 0, rows: 0 };
+    var xs = [], ys = [];
+    nodes.forEach(function (n) {
+      if (xs.indexOf(n.posX) === -1) xs.push(n.posX);
+      if (ys.indexOf(n.posY) === -1) ys.push(n.posY);
+    });
+    xs.sort(function (a, b) { return a - b; });
+    ys.sort(function (a, b) { return a - b; });
 
-    var xVals = [], yVals = [];
-    var xSet = {}, ySet = {};
-    for (var i = 0; i < nodes.length; i++) {
-      var n = nodes[i];
-      if (!xSet[n.posX]) { xSet[n.posX] = true; xVals.push(n.posX); }
-      if (!ySet[n.posY]) { ySet[n.posY] = true; yVals.push(n.posY); }
-    }
-    xVals.sort(function (a, b) { return a - b; });
-    yVals.sort(function (a, b) { return a - b; });
-
-    var xMap = {}, yMap = {};
-    for (var xi = 0; xi < xVals.length; xi++) xMap[xVals[xi]] = xi;
-    for (var yi = 0; yi < yVals.length; yi++) yMap[yVals[yi]] = yi;
-
-    var result = [];
-    for (var j = 0; j < nodes.length; j++) {
-      var nd = nodes[j];
-      result.push({
-        node: nd,
-        col: xMap[nd.posX],
-        row: yMap[nd.posY]
-      });
-    }
-    return {
-      items: result,
-      cols: xVals.length,
-      rows: yVals.length
-    };
+    return nodes.map(function (n) {
+      return {
+        col: xs.indexOf(n.posX),
+        row: ys.indexOf(n.posY)
+      };
+    });
   }
 
-  function svgEl(tag, attrs) {
-    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    if (attrs) {
-      for (var k in attrs) {
-        if (attrs.hasOwnProperty(k)) {
-          el.setAttribute(k, attrs[k]);
-        }
-      }
-    }
-    return el;
-  }
+  /* ── draw a single talent node ── */
+  function drawNode(svg, node, x, y, panelKey) {
+    var entry = (node.entries && node.entries[0]) || {};
+    var iconName = entry.icon || '';
+    var spellId  = entry.spellId || entry.visibleSpellId || 0;
+    var isChoice = (node.type === 'choice');
+    var isOctagon = isChoice;
 
-  function buildConnections(nodes) {
-    var conns = [];
-    var idMap = {};
-    for (var i = 0; i < nodes.length; i++) {
-      idMap[nodes[i].id] = true;
-    }
-    for (var j = 0; j < nodes.length; j++) {
-      var n = nodes[j];
-      var nexts = n.next || [];
-      for (var k = 0; k < nexts.length; k++) {
-        if (idMap[nexts[k]]) {
-          conns.push({ from: n.id, to: nexts[k] });
-        }
-      }
-    }
-    return conns;
-  }
+    var g = createSvgElement('g', {
+      'class': 'talent-node'
+              + (node.entryNode ? ' entry-node' : '')
+              + (isChoice ? ' choice-node' : '')
+              + (entry.type === 'active' ? ' active-talent' : ' passive-talent'),
+      'data-node-id':  node.id,
+      'data-spell-id': spellId,
+      transform: 'translate(' + x + ',' + y + ')'
+    });
 
-  function render(svgElement, nodes, selections) {
-    if (!svgElement) return;
-    while (svgElement.firstChild) svgElement.removeChild(svgElement.firstChild);
-
-    if (!nodes || nodes.length === 0) return;
-
-    var norm = normalizePositions(nodes);
-    var items = norm.items;
-    var cols = norm.cols;
-    var rows = norm.rows;
-
-    var svgWidth = cols * NODE_GAP_X + PADDING_X * 2;
-    var svgHeight = rows * NODE_GAP_Y + PADDING_TOP + PADDING_BOTTOM;
-
-    svgElement.setAttribute('viewBox', '0 0 ' + svgWidth + ' ' + svgHeight);
-    svgElement.setAttribute('width', '100%');
-
-    var defs = svgEl('defs');
-    svgElement.appendChild(defs);
-
-    var posMap = {};
-    for (var p = 0; p < items.length; p++) {
-      var it = items[p];
-      var cx = PADDING_X + it.col * NODE_GAP_X + NODE_GAP_X / 2;
-      var cy = PADDING_TOP + it.row * NODE_GAP_Y + NODE_GAP_Y / 2;
-      posMap[it.node.id] = { cx: cx, cy: cy, item: it };
-    }
-
-    // Draw connections
-    var conns = buildConnections(nodes);
-    for (var ci = 0; ci < conns.length; ci++) {
-      var c = conns[ci];
-      var fromPos = posMap[c.from];
-      var toPos = posMap[c.to];
-      if (!fromPos || !toPos) continue;
-
-      var fromSel = !!(selections && selections[c.from]);
-      var toSel = !!(selections && selections[c.to]);
-      var active = fromSel && toSel;
-
-      var line = svgEl('line', {
-        x1: fromPos.cx,
-        y1: fromPos.cy,
-        x2: toPos.cx,
-        y2: toPos.cy,
-        'class': 'connection-line' + (active ? ' active' : '')
+    /* shape */
+    if (isOctagon) {
+      var s = NODE_SIZE;
+      var c = s * 0.3;
+      var points = [
+        c + ',0',
+        (s - c) + ',0',
+        s + ',' + c,
+        s + ',' + (s - c),
+        (s - c) + ',' + s,
+        c + ',' + s,
+        '0,' + (s - c),
+        '0,' + c
+      ].join(' ');
+      var oct = createSvgElement('polygon', {
+        points: points,
+        'class': 'node-shape node-octagon'
       });
-      svgElement.appendChild(line);
-    }
+      g.appendChild(oct);
 
-    // Draw nodes
-    for (var ni = 0; ni < items.length; ni++) {
-      var item = items[ni];
-      var node = item.node;
-      var pos = posMap[node.id];
-      var sel = selections ? selections[node.id] : null;
-      var isSelected = !!sel;
-      var isFree = node.freeNode && isSelected;
-
-      var entryIdx = (sel && sel.choiceIndex) || 0;
-      var entry = (node.entries && node.entries[entryIdx]) || (node.entries && node.entries[0]);
-      var iconName = entry ? entry.icon : '';
-      var spellId = entry ? (entry.visibleSpellId || entry.spellId) : 0;
-      var rank = sel ? sel.rank : 0;
-      var maxRanks = node.maxRanks || 1;
-
-      var isChoice = node.type === 'choice';
-      var isSingle = node.type === 'single';
-
-      var g = svgEl('g', {
-        'class': 'talent-node' + (isSelected ? '' : ' unselected'),
-        'data-node-id': node.id
-      });
-
-      var clipId = 'clip-' + node.id;
-      var clip = svgEl('clipPath', { id: clipId });
+      /* clip for octagon icon */
+      var clipId = 'clip-oct-' + node.id;
+      var defs = createSvgElement('defs', {});
+      var clip = createSvgElement('clipPath', { id: clipId });
+      var clipPoly = createSvgElement('polygon', { points: points });
+      clip.appendChild(clipPoly);
       defs.appendChild(clip);
+      g.appendChild(defs);
 
-      var halfIcon = ICON_SIZE / 2;
-
-      if (isChoice) {
-        var octClip = svgEl('polygon', {
-          points: octagonPoints(pos.cx, pos.cy, OCTAGON_SIZE)
-        });
-        clip.appendChild(octClip);
-      } else if (isSingle && maxRanks === 1) {
-        var circleClip = svgEl('circle', {
-          cx: pos.cx,
-          cy: pos.cy,
-          r: halfIcon
-        });
-        clip.appendChild(circleClip);
-      } else {
-        var rectClip = svgEl('rect', {
-          x: pos.cx - halfIcon,
-          y: pos.cy - halfIcon,
-          width: ICON_SIZE,
-          height: ICON_SIZE,
-          rx: 3,
-          ry: 3
-        });
-        clip.appendChild(rectClip);
-      }
-
-      // Icon image
       if (iconName) {
-        var imgSize = isChoice ? OCTAGON_SIZE * 2 : ICON_SIZE;
-        var imgOffset = imgSize / 2;
-        var img = svgEl('image', {
+        var img = createSvgElement('image', {
           href: getIconUrl(iconName),
-          x: pos.cx - imgOffset,
-          y: pos.cy - imgOffset,
-          width: imgSize,
-          height: imgSize,
+          x: 0, y: 0,
+          width: NODE_SIZE,
+          height: NODE_SIZE,
           'clip-path': 'url(#' + clipId + ')',
           'class': 'node-icon'
         });
         g.appendChild(img);
       }
+    } else if (entry.type === 'active') {
+      /* square with rounded corners */
+      var rect = createSvgElement('rect', {
+        x: 0, y: 0,
+        width: NODE_SIZE, height: NODE_SIZE,
+        rx: 4, ry: 4,
+        'class': 'node-shape node-square'
+      });
+      g.appendChild(rect);
 
-      // Border
-      if (isChoice) {
-        var octState = isSelected ? 'selected' : 'unselected';
-        var borderOct = svgEl('polygon', {
-          points: octagonPoints(pos.cx, pos.cy, OCTAGON_SIZE),
-          'class': 'node-border-octagon ' + octState
+      if (iconName) {
+        var rectClipId = 'clip-rect-' + node.id;
+        var rectDefs = createSvgElement('defs', {});
+        var rectClip = createSvgElement('clipPath', { id: rectClipId });
+        var rectClipRect = createSvgElement('rect', {
+          x: 0, y: 0, width: NODE_SIZE, height: NODE_SIZE, rx: 4, ry: 4
         });
-        g.appendChild(borderOct);
-      } else if (isSingle && maxRanks === 1) {
-        var circState = isFree ? 'free' : (isSelected ? 'selected' : 'unselected');
-        var borderCirc = svgEl('circle', {
-          cx: pos.cx,
-          cy: pos.cy,
-          r: halfIcon,
-          'class': 'node-border-circle ' + circState
+        rectClip.appendChild(rectClipRect);
+        rectDefs.appendChild(rectClip);
+        g.appendChild(rectDefs);
+
+        var rectImg = createSvgElement('image', {
+          href: getIconUrl(iconName),
+          x: 0, y: 0,
+          width: NODE_SIZE, height: NODE_SIZE,
+          'clip-path': 'url(#' + rectClipId + ')',
+          'class': 'node-icon'
         });
-        g.appendChild(borderCirc);
-      } else {
-        var sqState = isFree ? 'free' : (isSelected ? 'selected' : 'unselected');
-        var borderSq = svgEl('rect', {
-          x: pos.cx - halfIcon,
-          y: pos.cy - halfIcon,
-          width: ICON_SIZE,
-          height: ICON_SIZE,
-          rx: 3,
-          ry: 3,
-          'class': 'node-border-square ' + sqState
-        });
-        g.appendChild(borderSq);
+        g.appendChild(rectImg);
       }
+    } else {
+      /* circle for passive */
+      var circ = createSvgElement('circle', {
+        cx: NODE_SIZE / 2,
+        cy: NODE_SIZE / 2,
+        r:  NODE_SIZE / 2,
+        'class': 'node-shape node-circle'
+      });
+      g.appendChild(circ);
 
-      // Rank text
-      if (isSelected && maxRanks >= 1) {
-        var rankStr = rank + '/' + maxRanks;
-        var textY = pos.cy + halfIcon + RANK_OFFSET_Y - 6;
-
-        var rankBg = svgEl('rect', {
-          x: pos.cx - 14,
-          y: textY - 9,
-          width: 28,
-          height: 12,
-          'class': 'rank-bg'
+      if (iconName) {
+        var circClipId = 'clip-circ-' + node.id;
+        var circDefs = createSvgElement('defs', {});
+        var circClip = createSvgElement('clipPath', { id: circClipId });
+        var circClipCircle = createSvgElement('circle', {
+          cx: NODE_SIZE / 2, cy: NODE_SIZE / 2, r: NODE_SIZE / 2
         });
-        g.appendChild(rankBg);
+        circClip.appendChild(circClipCircle);
+        circDefs.appendChild(circClip);
+        g.appendChild(circDefs);
 
-        var rankText = svgEl('text', {
-          x: pos.cx,
-          y: textY,
-          'class': 'rank-text'
+        var circImg = createSvgElement('image', {
+          href: getIconUrl(iconName),
+          x: 0, y: 0,
+          width: NODE_SIZE, height: NODE_SIZE,
+          'clip-path': 'url(#' + circClipId + ')',
+          'class': 'node-icon'
         });
-        rankText.textContent = rankStr;
-        g.appendChild(rankText);
-      }
-
-      // Tooltip link
-      if (spellId) {
-        var link = svgEl('a', {
-          'data-spell-id': spellId,
-          'class': 'talent-link',
-          'href': 'javascript:void(0)'
-        });
-
-        link.addEventListener('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        });
-
-        link.appendChild(g);
-        svgElement.appendChild(link);
-      } else {
-        svgElement.appendChild(g);
+        g.appendChild(circImg);
       }
     }
+
+    /* rank badge */
+    if (node.maxRanks && node.maxRanks > 1) {
+      var badge = createSvgElement('text', {
+        x: NODE_SIZE - 2,
+        y: NODE_SIZE - 2,
+        'class': 'rank-badge',
+        'text-anchor': 'end'
+      });
+      badge.textContent = '0/' + node.maxRanks;
+      g.appendChild(badge);
+    }
+
+    svg.appendChild(g);
   }
 
+  /* ── icon URL helper ── */
+  function getIconUrl(iconName) {
+    if (!iconName) return '';
+    var name = iconName.toLowerCase();
+    // Fix double underscore → underscore + hyphen (e.g. warlock__bloodstone → warlock_-bloodstone)
+    name = name.replace(/__/g, '_-');
+    return WOWHEAD_ICON_BASE + name + '.jpg';
+  }
+
+  /* ── SVG element helper ── */
+  function createSvgElement(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) {
+        el.setAttribute(k, attrs[k]);
+      });
+    }
+    return el;
+  }
+
+  /* ── Hero Tree Icon ── */
+  function renderHeroIcon(specData, buildState) {
+    // Remove old icon
+    if (heroIconEl) {
+      heroIconEl.remove();
+      heroIconEl = null;
+    }
+
+    if (!specData || !specData.subTreeNodes || !specData.subTreeNodes[0]) return;
+
+    var subTreeNode = specData.subTreeNodes[0];
+    var entries = subTreeNode.entries;
+    if (!entries || entries.length < 1) return;
+
+    // Find active hero subTree from buildState
+    var activeEntry = null;
+
+    if (buildState && buildState.heroTreeId) {
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].traitSubTreeId === buildState.heroTreeId) {
+          activeEntry = entries[i];
+          break;
+        }
+      }
+    }
+
+    if (!activeEntry && buildState && buildState.heroNodes) {
+      // Find by checking which subTree has allocated nodes
+      var subTreeIds = {};
+      entries.forEach(function (e) {
+        subTreeIds[e.traitSubTreeId] = { entry: e, count: 0 };
+      });
+
+      specData.heroNodes.forEach(function (node) {
+        if (node.subTreeId && subTreeIds[node.subTreeId]) {
+          var nodeState = buildState.heroNodes[node.id];
+          if (nodeState && nodeState.ranks > 0) {
+            subTreeIds[node.subTreeId].count++;
+          }
+        }
+      });
+
+      var maxCount = 0;
+      Object.keys(subTreeIds).forEach(function (id) {
+        if (subTreeIds[id].count > maxCount) {
+          maxCount = subTreeIds[id].count;
+          activeEntry = subTreeIds[id].entry;
+        }
+      });
+    }
+
+    // Fallback to first entry
+    if (!activeEntry) {
+      activeEntry = entries[0];
+    }
+
+    var atlas = activeEntry.atlasMemberName;
+    if (!atlas) return;
+
+    var imgSrc = 'images/hero/' + atlas + '.png';
+
+    // Find hero panel
+    var heroPanel = document.querySelector('.tree-panel-hero');
+    if (!heroPanel) return;
+
+    // Create icon container
+    heroIconEl = document.createElement('div');
+    heroIconEl.className = 'hero-tree-icon';
+
+    var img = document.createElement('img');
+    img.src = imgSrc;
+    img.alt = activeEntry.name || '';
+    img.onerror = function () {
+      heroIconEl.style.display = 'none';
+    };
+
+    heroIconEl.appendChild(img);
+
+    // Insert before SVG
+    heroPanel.insertBefore(heroIconEl, heroPanel.firstChild);
+  }
+
+  /* ── public API ── */
   return {
-    render: render
+    init: init,
+    renderTree: renderTree,
+    renderHeroIcon: renderHeroIcon
   };
 
 })();
