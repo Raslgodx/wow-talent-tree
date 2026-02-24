@@ -16,7 +16,21 @@
       if (xhr.readyState === 4) {
         if (xhr.status === 200 || xhr.status === 0) {
           try {
-            talentData = JSON.parse(xhr.responseText);
+            var data = JSON.parse(xhr.responseText);
+            // Tag each node with its tree type for the decoder
+            for (var i = 0; i < data.length; i++) {
+              var spec = data[i];
+              var tagNodes = function (arr, type) {
+                if (!arr) return;
+                for (var j = 0; j < arr.length; j++) {
+                  arr[j]._treeType = type;
+                }
+              };
+              tagNodes(spec.classNodes, 'class');
+              tagNodes(spec.specNodes, 'spec');
+              tagNodes(spec.heroNodes, 'hero');
+            }
+            talentData = data;
             console.log('Loaded talent data: ' + talentData.length + ' specs');
             callback(null);
           } catch (e) {
@@ -61,7 +75,6 @@
       if (filtered.length > 0) return filtered;
     }
 
-    // Fallback: use heroTreeData nodeIds
     if (result.heroTreeData && result.heroTreeData.nodeIds) {
       var idSet = {};
       for (var j = 0; j < result.heroTreeData.nodeIds.length; j++) {
@@ -151,12 +164,10 @@
       r.heroSelections
     );
 
-    // Debug output
     console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
     console.log('[Render] Spec selected:', Object.keys(r.specSelections).length);
     console.log('[Render] Hero nodes shown:', heroNodes.length, 'selected:', Object.keys(r.heroSelections).length);
 
-    // Refresh Wowhead tooltips
     setTimeout(function () {
       if (window.$WowheadPower && window.$WowheadPower.refreshLinks) {
         window.$WowheadPower.refreshLinks();
@@ -228,20 +239,30 @@
   }
 
   function init() {
+    // Load both data files, then start
     loadTalentData(function (err) {
       if (err) {
         showError(err);
         return;
       }
-      initCopyButton();
-      TalentTooltip.init();
 
-      var urlData = parseUrl();
-      if (urlData) {
-        loadBuild(urlData.mode, urlData.str);
-      } else {
-        showEmpty();
-      }
+      TalentDecoder.loadNodeOrder(function (err2) {
+        if (err2) {
+          showError(err2);
+          return;
+        }
+
+        console.log('Node order data loaded successfully');
+        initCopyButton();
+        TalentTooltip.init();
+
+        var urlData = parseUrl();
+        if (urlData) {
+          loadBuild(urlData.mode, urlData.str);
+        } else {
+          showEmpty();
+        }
+      });
     });
   }
 
