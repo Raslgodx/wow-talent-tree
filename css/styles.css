@@ -1,4 +1,3 @@
-На мобильном устройстве уменьши ширину разделов class 
 /* ===== Reset & Base ===== */
 * {
   margin: 0;
@@ -324,17 +323,6 @@ html, body {
   .copy-bar,
   .copy-bar.visible {
     display: none !important;
-  }
-}
-@media (max-width: 540px) {
-.tree-panel[data-tree="class"],
-  .tree-panel[data-tree="spec"] {
-    width: 30%;
-    max-width: 440px;
-  }
-  .tree-panel-hero {
-    width: 30%;
-    max-width: 200px;
   }
 }
 }
