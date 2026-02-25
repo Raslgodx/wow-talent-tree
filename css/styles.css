@@ -330,7 +330,7 @@ html, body {
 .tree-panel[data-tree="class"],
 .tree-panel[data-tree="spec"],
 .tree-panel[data-tree="hero"] {
-  width: 340px;
+  width: 50%;
 }
 }
 }
