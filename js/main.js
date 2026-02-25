@@ -195,7 +195,7 @@
     }
   }
 
-  function renderAllTrees() {
+    function renderAllTrees() {
     if (!currentResult) return;
     var r = currentResult;
 
@@ -218,12 +218,14 @@
       r.heroSelections
     );
 
-    // Render hero icon above hero tree
     TalentTreeRenderer.renderHeroIcon(r.treeData, r.selectedSubTreeId);
 
     console.log('[Render] Class selected:', Object.keys(r.classSelections).length);
     console.log('[Render] Spec selected:', Object.keys(r.specSelections).length);
     console.log('[Render] Hero nodes shown:', heroNodes.length, 'selected:', Object.keys(r.heroSelections).length);
+
+    // Update parent iframe height after render
+    sendHeight();
   }
 
   function initCopyButton() {
@@ -289,16 +291,18 @@
       '</code></div>';
   }
 
-  function init() {
+    function init() {
     loadTalentData(function (err) {
       if (err) {
         showError(err);
+        sendHeight(); // отправить даже при ошибке
         return;
       }
 
       TalentDecoder.loadNodeOrder(function (err2) {
         if (err2) {
           showError(err2);
+          sendHeight();
           return;
         }
 
@@ -312,8 +316,42 @@
         } else {
           showEmpty();
         }
+
+        // Send height after render
+        sendHeight();
+
+        // Resend on resize (responsive changes)
+        window.addEventListener('resize', debounce(sendHeight, 200));
       });
     });
+  }
+
+  function sendHeight() {
+    // Small delay to let browser finish layout
+    setTimeout(function () {
+      var body = document.body;
+      var html = document.documentElement;
+      var height = Math.max(
+        body.scrollHeight,
+        body.offsetHeight,
+        html.clientHeight,
+        html.scrollHeight,
+        html.offsetHeight
+      );
+      window.parent.postMessage({
+        type: 'talent-tree-resize',
+        height: height
+      }, '*');
+      console.log('[iframe] Sent height:', height);
+    }, 100);
+  }
+
+  function debounce(fn, delay) {
+    var timer;
+    return function () {
+      clearTimeout(timer);
+      timer = setTimeout(fn, delay);
+    };
   }
 
   if (document.readyState === 'loading') {
