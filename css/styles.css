@@ -37,8 +37,6 @@ html, body {
   pointer-events: none;
 }
 
-
-
 /* ===== Error ===== */
 .error-msg {
   position: relative;
@@ -73,6 +71,7 @@ html, body {
 /* ===== Tree Panel ===== */
 .tree-panel {
   flex: 0 0 auto;
+  overflow: hidden;
 }
 
 .tree-panel[data-tree="class"],
@@ -80,13 +79,7 @@ html, body {
   width: 440px;
 }
 
-.tree-panel-hero {
-  width: 300px;
-  align-self: center;
-  position: relative;
-}
-
-/* ===== Hero Tree Icon ===== */
+/* ===== Hero Tree Panel & Icon ===== */
 .tree-panel-hero {
   width: 300px;
   align-self: center;
@@ -94,6 +87,7 @@ html, body {
 }
 
 .hero-tree-icon {
+  position: absolute;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -109,6 +103,12 @@ html, body {
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+}
+
+/* ===== SVG base ===== */
+.tree-svg {
+  display: block;
+  transform-origin: top left;
 }
 
 /* ===== SVG Connection Lines ===== */
@@ -301,35 +301,108 @@ html, body {
 }
 
 /* ===== Responsive ===== */
-@media (max-width: 1198px) {
-  .trees-container {
-    flex-direction: column;
-    align-items: center;
-  }
-  .tree-panel[data-tree="class"],
-  .tree-panel[data-tree="spec"] {
-    width: 95%;
-    max-width: 440px;
-  }
-  .tree-panel-hero {
-    width: 70%;
-    max-width: 300px;
+@media (max-width: 1550px) {
+  .spec-background {
+    display: none;
   }
 }
-  @media (max-width: 1240px) {
+
+@media (max-width: 1240px) {
   .copy-bar,
   .copy-bar.visible {
     display: none !important;
   }
 }
-@media (max-width:540px){
+
+@media (max-width: 1198px) {
   .trees-container {
-  padding: 0;
+    flex-direction: column;
+    align-items: center;
   }
-  
+
+  .tree-panel[data-tree="class"],
+  .tree-panel[data-tree="spec"] {
+    width: 95%;
+    max-width: 500px;
+  }
+
+  .tree-panel-hero {
+    width: 80%;
+    max-width: 360px;
+  }
+
+  .tree-svg {
+    transform: scale(0.8);
+    transform-origin: top center;
+  }
+
+  /* Shrink panel height to match scaled SVG */
+  .tree-panel {
+    overflow: visible;
+  }
+
+  .hero-tree-icon {
+    width: 52px;
+    height: 52px;
+  }
 }
-@media (max-width: 1550px) {
-  .spec-background {
-    display: none;
+
+@media (max-width: 768px) {
+  .tree-panel[data-tree="class"],
+  .tree-panel[data-tree="spec"] {
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .tree-panel-hero {
+    width: 85%;
+    max-width: 320px;
+  }
+
+  .tree-svg {
+    transform: scale(0.65);
+    transform-origin: top center;
+  }
+
+  .hero-tree-icon {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 540px) {
+  .trees-container {
+    padding: 0;
+  }
+
+  .tree-panel[data-tree="class"],
+  .tree-panel[data-tree="spec"] {
+    width: 100%;
+  }
+
+  .tree-panel-hero {
+    width: 90%;
+  }
+
+  .tree-svg {
+    transform: scale(0.52);
+    transform-origin: top center;
+  }
+
+  .hero-tree-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 400px) {
+  .tree-svg {
+    transform: scale(0.42);
+    transform-origin: top center;
+  }
+
+  .hero-tree-icon {
+    width: 36px;
+    height: 36px;
   }
 }
