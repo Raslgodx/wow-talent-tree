@@ -20,7 +20,7 @@ var TalentTreeRenderer = (function () {
    * Main render function — called from main.js as:
    *   renderTree(svgElement, nodesArray, selectionsObject)
    */
-  function renderTree(svgEl, nodes, selections) {
+    function renderTree(svgEl, nodes, selections) {
     if (!svgEl) return;
     svgEl.innerHTML = '';
 
@@ -41,9 +41,13 @@ var TalentTreeRenderer = (function () {
     });
     var svgW = maxCol * GRID_X + NODE_SIZE + PADDING * 2;
     var svgH = maxRow * GRID_Y + NODE_SIZE + PADDING * 2;
-    svgEl.setAttribute('width',  svgW);
-    svgEl.setAttribute('height', svgH);
+
+    // Use viewBox for scaling, remove fixed width/height
     svgEl.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+    svgEl.setAttribute('width', svgW);
+    svgEl.setAttribute('height', svgH);
+    svgEl.style.width = '100%';
+    svgEl.style.height = 'auto';
 
     var coordMap = {};
     nodes.forEach(function (n, i) {
@@ -84,7 +88,6 @@ var TalentTreeRenderer = (function () {
       var y = PADDING + c.row * GRID_Y;
       drawNode(svgEl, node, x, y, sel);
     });
-  svgEl.style.display = 'block';
   }
 
   function normalizePositions(nodes) {
