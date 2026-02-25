@@ -319,6 +319,7 @@ html, body {
     width: 70%;
     max-width: 300px;
   }
+}
   @media (max-width: 1240px) {
   .copy-bar,
   .copy-bar.visible {
@@ -329,6 +330,4 @@ html, body {
   .trees-container {
   padding: 0;
   }
-}
-
 }
