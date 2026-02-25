@@ -326,11 +326,5 @@ html, body {
     display: none !important;
   }
 }
-@media (max-width: 540px) {
-.tree-panel[data-tree="class"],
-.tree-panel[data-tree="spec"],
-.tree-panel[data-tree="hero"] {
-  width: 50%;
-}
-}
+
 }
