@@ -262,16 +262,14 @@ var TalentTreeRenderer = (function () {
     return el;
   }
 
-    function renderHeroIcon(treeData, selectedSubTreeId) {
+      function renderHeroIcon(treeData, selectedSubTreeId) {
     if (heroIconEl) {
       heroIconEl.remove();
       heroIconEl = null;
     }
 
     var heroPanel = document.getElementById('heroTreePanel');
-    if (heroPanel) {
-      heroPanel.style.paddingTop = '';
-    }
+    if (!heroPanel) return;
 
     if (!treeData || !treeData.subTreeNodes || !treeData.subTreeNodes[0]) return;
 
@@ -297,39 +295,27 @@ var TalentTreeRenderer = (function () {
     var atlas = activeEntry.atlasMemberName;
     if (!atlas) return;
 
-    var imgSrc = 'images/hero/' + atlas + '.webp';
-
-    if (!heroPanel) return;
-
-    // Get SVG to calculate center position
-    var svgEl = document.getElementById('heroTreeSvg');
-    if (!svgEl) return;
-
-    var svgWidth = parseInt(svgEl.getAttribute('width')) || 0;
-    var iconSize = 64;
-
-    // Add padding for icon above tree
-    heroPanel.style.paddingTop = '72px';
+    var imgSrc = 'images/hero/' + atlas + '.png';
 
     heroIconEl = document.createElement('div');
     heroIconEl.className = 'hero-tree-icon';
-
-    // Position centered above SVG content
-    var centerX = (svgWidth / 2) - (iconSize / 2);
-    heroIconEl.style.position = 'absolute';
-    heroIconEl.style.top = '0px';
-    heroIconEl.style.left = centerX + 'px';
 
     var img = document.createElement('img');
     img.src = imgSrc;
     img.alt = activeEntry.name || '';
     img.onerror = function () {
       heroIconEl.style.display = 'none';
-      heroPanel.style.paddingTop = '';
     };
 
     heroIconEl.appendChild(img);
-    heroPanel.appendChild(heroIconEl);
+
+    // Insert before SVG
+    var svgEl = heroPanel.querySelector('svg');
+    if (svgEl) {
+      heroPanel.insertBefore(heroIconEl, svgEl);
+    } else {
+      heroPanel.appendChild(heroIconEl);
+    }
   }
 
   return {
