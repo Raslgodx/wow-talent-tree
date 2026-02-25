@@ -84,6 +84,7 @@ var TalentTreeRenderer = (function () {
       var y = PADDING + c.row * GRID_Y;
       drawNode(svgEl, node, x, y, sel);
     });
+  svgEl.style.display = 'block';
   }
 
   function normalizePositions(nodes) {
