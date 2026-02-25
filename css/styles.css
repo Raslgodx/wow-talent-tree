@@ -105,6 +105,7 @@ html, body {
   background: #1a1a2e;
   box-shadow: 0 0 12px rgba(200, 168, 78, 0.5);
   z-index: 5;
+  margin: 0 0 -10px;
 }
 
 .hero-tree-icon img {
