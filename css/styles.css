@@ -95,10 +95,10 @@ html, body {
 
 /* ===== Hero Tree Icon ===== */
 .hero-tree-icon {
-  align-self: center;
-  position: relative;
-  width: 70px;
-  height: 70px;
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 4px;
   border-radius: 50%;
   border: 3px solid #c8a84e;
   overflow: hidden;
@@ -309,6 +309,9 @@ html, body {
   .copy-bar,
   .copy-bar.visible {
     display: none !important;
+  }
+  .hero-tree-icon {
+    display: none;
   }
 }
 
