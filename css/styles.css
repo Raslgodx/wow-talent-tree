@@ -326,15 +326,7 @@ html, body {
   .trees-container {
   padding: 0;
   }
-  .tree-panel[data-tree="class"],
-  .tree-panel[data-tree="spec"] {
-    width: 40%;
-    max-width: 440px;
-  }
-  .tree-panel-hero {
-    width: 40%;
-    max-width: 300px;
-  }
+  
 }
 @media (max-width: 1550px) {
   .spec-background {
