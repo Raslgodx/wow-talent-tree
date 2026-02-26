@@ -21,6 +21,7 @@ var TalentTreeRenderer = (function () {
     454433: 'achievement_guildperk_havegroup-willtravel',
     319951: 'ability_rogue_shuriken-storm',
     385722: 'ability_rogue_shuriken-storm',
+    386689: 'warlock_-bloodstone',
     
     // Example:
     // 123456: 'some_correct_icon_name',
