@@ -18,7 +18,9 @@ var TalentTreeRenderer = (function () {
   // and add it here: spellId: 'correct_icon_name'
   // ============================================================
   var iconOverrides = {
-    454433: 'achievement_guildperk_havegroup-willtravel'
+    454433: 'achievement_guildperk_havegroup-willtravel',
+    319951: 'ability_rogue_shuriken-storm',
+    
     // Example:
     // 123456: 'some_correct_icon_name',
     // 789012: 'another_icon_name'
