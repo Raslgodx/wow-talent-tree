@@ -5,19 +5,31 @@
 
 var TalentTreeRenderer = (function () {
 
-    var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
+  var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
   var NODE_SIZE   = 40;
   var GRID_X      = 60;
   var GRID_Y      = 60;
   var PADDING     = 30;
   var heroIconEl  = null;
 
+  // ============================================================
   // Custom icon overrides: spellId → correct icon filename (without .jpg)
+  // If an icon doesn't render, find the correct filename on wowhead
+  // and add it here: spellId: 'correct_icon_name'
+  // ============================================================
   var iconOverrides = {
     454433: 'achievement_guildperk_havegroup-willtravel'
+    // Example:
+    // 123456: 'some_correct_icon_name',
+    // 789012: 'another_icon_name'
   };
 
+  function init() {
+    console.log('[Renderer] Initialized');
+  }
+
   function getIconUrl(iconName, spellId) {
+    // Check overrides first
     if (spellId && iconOverrides[spellId]) {
       return WOWHEAD_ICON_BASE + iconOverrides[spellId] + '.jpg';
     }
@@ -26,15 +38,11 @@ var TalentTreeRenderer = (function () {
     return WOWHEAD_ICON_BASE + name + '.jpg';
   }
 
-  function init() {
-    console.log('[Renderer] Initialized');
-  }
-
   /**
    * Main render function — called from main.js as:
    *   renderTree(svgElement, nodesArray, selectionsObject)
    */
-    function renderTree(svgEl, nodes, selections) {
+  function renderTree(svgEl, nodes, selections) {
     if (!svgEl) return;
     svgEl.innerHTML = '';
 
@@ -56,7 +64,6 @@ var TalentTreeRenderer = (function () {
     var svgW = maxCol * GRID_X + NODE_SIZE + PADDING * 2;
     var svgH = maxRow * GRID_Y + NODE_SIZE + PADDING * 2;
 
-    // Use viewBox for scaling, remove fixed width/height
     svgEl.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
     svgEl.setAttribute('width', svgW);
     svgEl.setAttribute('height', svgH);
@@ -121,7 +128,7 @@ var TalentTreeRenderer = (function () {
     });
   }
 
-   function drawNode(svg, node, x, y, selections) {
+  function drawNode(svg, node, x, y, selections) {
     var nodeSel = selections[node.id];
     var isSelected = !!nodeSel;
 
@@ -174,8 +181,16 @@ var TalentTreeRenderer = (function () {
       defs.appendChild(clip);
       g.appendChild(defs);
 
-      addIconWithFallback(g, iconName, clipId, 0, 0, NODE_SIZE, NODE_SIZE);
-
+      if (iconName) {
+        var img = createSvgElement('image', {
+          href: getIconUrl(iconName, spellId),
+          x: 0, y: 0,
+          width: NODE_SIZE, height: NODE_SIZE,
+          'clip-path': 'url(#' + clipId + ')',
+          'class': 'node-icon'
+        });
+        g.appendChild(img);
+      }
     } else if (entry.type === 'active') {
       var rect = createSvgElement('rect', {
         x: 0, y: 0,
@@ -185,18 +200,26 @@ var TalentTreeRenderer = (function () {
       });
       g.appendChild(rect);
 
-      var rectClipId = 'clip-rect-' + node.id;
-      var rectDefs = createSvgElement('defs', {});
-      var rectClip = createSvgElement('clipPath', { id: rectClipId });
-      var rectClipRect = createSvgElement('rect', {
-        x: 0, y: 0, width: NODE_SIZE, height: NODE_SIZE, rx: 4, ry: 4
-      });
-      rectClip.appendChild(rectClipRect);
-      rectDefs.appendChild(rectClip);
-      g.appendChild(rectDefs);
+      if (iconName) {
+        var rectClipId = 'clip-rect-' + node.id;
+        var rectDefs = createSvgElement('defs', {});
+        var rectClip = createSvgElement('clipPath', { id: rectClipId });
+        var rectClipRect = createSvgElement('rect', {
+          x: 0, y: 0, width: NODE_SIZE, height: NODE_SIZE, rx: 4, ry: 4
+        });
+        rectClip.appendChild(rectClipRect);
+        rectDefs.appendChild(rectClip);
+        g.appendChild(rectDefs);
 
-      addIconWithFallback(g, iconName, rectClipId, 0, 0, NODE_SIZE, NODE_SIZE);
-
+        var rectImg = createSvgElement('image', {
+          href: getIconUrl(iconName, spellId),
+          x: 0, y: 0,
+          width: NODE_SIZE, height: NODE_SIZE,
+          'clip-path': 'url(#' + rectClipId + ')',
+          'class': 'node-icon'
+        });
+        g.appendChild(rectImg);
+      }
     } else {
       var circ = createSvgElement('circle', {
         cx: NODE_SIZE / 2,
@@ -206,17 +229,26 @@ var TalentTreeRenderer = (function () {
       });
       g.appendChild(circ);
 
-      var circClipId = 'clip-circ-' + node.id;
-      var circDefs = createSvgElement('defs', {});
-      var circClip = createSvgElement('clipPath', { id: circClipId });
-      var circClipCircle = createSvgElement('circle', {
-        cx: NODE_SIZE / 2, cy: NODE_SIZE / 2, r: NODE_SIZE / 2
-      });
-      circClip.appendChild(circClipCircle);
-      circDefs.appendChild(circClip);
-      g.appendChild(circDefs);
+      if (iconName) {
+        var circClipId = 'clip-circ-' + node.id;
+        var circDefs = createSvgElement('defs', {});
+        var circClip = createSvgElement('clipPath', { id: circClipId });
+        var circClipCircle = createSvgElement('circle', {
+          cx: NODE_SIZE / 2, cy: NODE_SIZE / 2, r: NODE_SIZE / 2
+        });
+        circClip.appendChild(circClipCircle);
+        circDefs.appendChild(circClip);
+        g.appendChild(circDefs);
 
-      addIconWithFallback(g, iconName, circClipId, 0, 0, NODE_SIZE, NODE_SIZE);
+        var circImg = createSvgElement('image', {
+          href: getIconUrl(iconName, spellId),
+          x: 0, y: 0,
+          width: NODE_SIZE, height: NODE_SIZE,
+          'clip-path': 'url(#' + circClipId + ')',
+          'class': 'node-icon'
+        });
+        g.appendChild(circImg);
+      }
     }
 
     if (node.maxRanks && node.maxRanks > 1) {
@@ -234,45 +266,6 @@ var TalentTreeRenderer = (function () {
     svg.appendChild(g);
   }
 
-   function getIconUrl(iconName) {
-    if (!iconName) return '';
-    var name = iconName.toLowerCase();
-    return WOWHEAD_ICON_BASE + name + '.jpg';
-  }
-
-  function getIconUrlFallback(iconName) {
-    if (!iconName) return '';
-    var name = iconName.toLowerCase();
-    // Try replacing underscores with hyphens in various positions
-    // Wowhead sometimes uses hyphens instead of underscores
-    name = name.replace(/_/g, '-');
-    return WOWHEAD_ICON_BASE + name + '.jpg';
-  }
-
-  function addIconWithFallback(g, iconName, clipPathId, x, y, w, h) {
-    if (!iconName) return;
-
-    var img = createSvgElement('image', {
-      href: getIconUrl(iconName),
-      x: x, y: y,
-      width: w, height: h,
-      'class': 'node-icon'
-    });
-    if (clipPathId) {
-      img.setAttribute('clip-path', 'url(#' + clipPathId + ')');
-    }
-
-    // On error: try fallback URL with hyphens
-    img.addEventListener('error', function () {
-      var fallback = getIconUrlFallback(iconName);
-      if (img.getAttribute('href') !== fallback) {
-        img.setAttribute('href', fallback);
-      }
-    });
-
-    g.appendChild(img);
-  }
-
   function createSvgElement(tag, attrs) {
     var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
     if (attrs) {
@@ -283,7 +276,7 @@ var TalentTreeRenderer = (function () {
     return el;
   }
 
-      function renderHeroIcon(treeData, selectedSubTreeId) {
+  function renderHeroIcon(treeData, selectedSubTreeId) {
     if (heroIconEl) {
       heroIconEl.remove();
       heroIconEl = null;
@@ -330,7 +323,6 @@ var TalentTreeRenderer = (function () {
 
     heroIconEl.appendChild(img);
 
-    // Insert before SVG
     var svgEl = heroPanel.querySelector('svg');
     if (svgEl) {
       heroPanel.insertBefore(heroIconEl, svgEl);
