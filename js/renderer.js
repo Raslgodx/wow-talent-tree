@@ -5,12 +5,26 @@
 
 var TalentTreeRenderer = (function () {
 
-  var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
+    var WOWHEAD_ICON_BASE = 'https://wow.zamimg.com/images/wow/icons/medium/';
   var NODE_SIZE   = 40;
   var GRID_X      = 60;
   var GRID_Y      = 60;
   var PADDING     = 30;
   var heroIconEl  = null;
+
+  // Custom icon overrides: spellId → correct icon filename (without .jpg)
+  var iconOverrides = {
+    454433: 'achievement_guildperk_havegroup-willtravel'
+  };
+
+  function getIconUrl(iconName, spellId) {
+    if (spellId && iconOverrides[spellId]) {
+      return WOWHEAD_ICON_BASE + iconOverrides[spellId] + '.jpg';
+    }
+    if (!iconName) return '';
+    var name = iconName.toLowerCase();
+    return WOWHEAD_ICON_BASE + name + '.jpg';
+  }
 
   function init() {
     console.log('[Renderer] Initialized');
