@@ -134,7 +134,14 @@ var TalentTreeRenderer = (function () {
   function drawNode(svg, node, x, y, selections) {
     var nodeSel = selections[node.id];
     var isSelected = !!nodeSel;
-
+   // TEMP DEBUG — remove later
+    if (node.id === 110432) {
+      console.log('[drawNode] 110432 — nodeSel:', JSON.stringify(nodeSel));
+      console.log('[drawNode] 110432 — node.id type:', typeof node.id);
+      console.log('[drawNode] 110432 — selections keys sample:', Object.keys(selections).slice(0,5));
+      console.log('[drawNode] 110432 — direct lookup:', selections[110432]);
+      console.log('[drawNode] 110432 — string lookup:', selections['110432']);
+    }
     var entryIndex = 0;
     if (nodeSel && nodeSel.choiceIndex !== undefined && node.entries && node.entries.length > 1) {
       entryIndex = nodeSel.choiceIndex;
