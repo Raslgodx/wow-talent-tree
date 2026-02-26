@@ -1,17 +1,5 @@
 /**
  * WoW Talent Loadout String Decoder (The War Within / 11.x)
- *
- * Format (from Wowhead TalentCalcDragonflight.js):
- *   - Base64 alphabet: A-Za-z0-9+/  (6 bits per char, LSB first)
- *   - Header: 8-bit version, 16-bit specId, 128-bit treeHash
- *   - For each node in fixed order (from wowhead-node-order.json):
- *       1 bit: isNodeSelected
- *       if version>1 && selected: 1 bit isNodePurchased
- *       if purchased:
- *         1 bit: isPartiallyRanked
- *         if partial: 6 bits partialRanksPurchased
- *         1 bit: isChoiceNode
- *         if choice: 2 bits choiceNodeSelection
  */
 
 var TalentDecoder = (function () {
@@ -20,7 +8,6 @@ var TalentDecoder = (function () {
 
   var nodeOrderData = null;
 
-  // ---- Load node order from Wowhead data ----
   function loadNodeOrder(callback) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'data/wowhead-node-order.json', true);
@@ -41,7 +28,6 @@ var TalentDecoder = (function () {
     xhr.send();
   }
 
-  // ---- Bit reader working directly on base64 values (6-bit) ----
   function BitReader(exportString) {
     this.vals = [];
     for (var i = 0; i < exportString.length; i++) {
@@ -85,7 +71,6 @@ var TalentDecoder = (function () {
     return this.currentIndex < this.vals.length;
   };
 
-  // ---- Parse header ----
   function parseHeader(reader) {
     var version = reader.read(8);
     var specId = reader.read(16);
@@ -96,7 +81,6 @@ var TalentDecoder = (function () {
     return { version: version, specId: specId, treeHash: treeHash };
   }
 
-  // ---- Read all node states ----
   function readAllNodes(reader, version) {
     var nodes = [];
     while (reader.hasMore()) {
@@ -172,7 +156,6 @@ var TalentDecoder = (function () {
     var nodeOrder = orderInfo.nodes;
     var heroTreeChoices = orderInfo.heroTreeChoices || {};
 
-    // Build set of heroTreeChoice node IDs for quick lookup
     var heroChoiceNodeIds = {};
     var heroChoiceKeys = Object.keys(heroTreeChoices);
     for (var hc = 0; hc < heroChoiceKeys.length; hc++) {
@@ -182,15 +165,35 @@ var TalentDecoder = (function () {
     console.log('[Decoder] Class:', treeData.className, 'Spec:', treeData.specName,
       'Nodes in order:', nodeOrder.length);
 
-    // 4. Build lookup: nodeId → talent info
+    // 4. Build lookup from ALL specs of same class (not just current spec)
+    //    Node order contains nodes for all specs of the class
     var nodeLookup = {};
-    var allTreeNodes = ['classNodes', 'specNodes', 'heroNodes'];
-    for (var t = 0; t < allTreeNodes.length; t++) {
-      var arr = treeData[allTreeNodes[t]] || [];
-      for (var n = 0; n < arr.length; n++) {
-        nodeLookup[arr[n].id] = arr[n];
+    var currentSpecNodeIds = {};
+
+    // First: add nodes from ALL specs of same class
+    for (var si = 0; si < talentData.length; si++) {
+      if (talentData[si].classId === classId) {
+        var allTreeNodes = ['classNodes', 'specNodes', 'heroNodes'];
+        for (var t = 0; t < allTreeNodes.length; t++) {
+          var arr = talentData[si][allTreeNodes[t]] || [];
+          for (var n = 0; n < arr.length; n++) {
+            nodeLookup[arr[n].id] = arr[n];
+          }
+        }
       }
     }
+
+    // Mark which nodes belong to current spec
+    var currentTreeTypes = ['classNodes', 'specNodes', 'heroNodes'];
+    for (var ct = 0; ct < currentTreeTypes.length; ct++) {
+      var cArr = treeData[currentTreeTypes[ct]] || [];
+      for (var cn = 0; cn < cArr.length; cn++) {
+        currentSpecNodeIds[cArr[cn].id] = true;
+      }
+    }
+
+    console.log('[Decoder] Full class lookup size:', Object.keys(nodeLookup).length,
+      'Current spec nodes:', Object.keys(currentSpecNodeIds).length);
 
     // 5. Read all node states from bitstream
     var rawNodes = readAllNodes(reader, header.version);
@@ -204,7 +207,6 @@ var TalentDecoder = (function () {
     var specPoints = 0;
     var heroPoints = 0;
 
-    // Collect selected hero node IDs to determine active subTreeId
     var selectedHeroNodeIds = [];
 
     for (var idx = 0; idx < rawNodes.length && idx < nodeOrder.length; idx++) {
@@ -213,14 +215,20 @@ var TalentDecoder = (function () {
 
       var nodeId = nodeOrder[idx];
 
-      // Skip hero tree choice nodes (they're not real talent nodes)
+      // Skip hero tree choice nodes
       if (heroChoiceNodeIds[nodeId]) {
         continue;
       }
 
       var info = nodeLookup[nodeId];
       if (!info) {
-        // Unknown node — not in this spec's talent data, skip
+        // Truly unknown node — skip
+        console.warn('[Decoder] Unknown node ID:', nodeId, 'at index:', idx);
+        continue;
+      }
+
+      // Skip nodes that don't belong to current spec
+      if (!currentSpecNodeIds[nodeId]) {
         continue;
       }
 
@@ -231,7 +239,6 @@ var TalentDecoder = (function () {
       } else if (rn.isPurchased) {
         rank = info.maxRanks || 1;
       } else {
-        // granted (selected but not purchased) = full rank
         rank = info.maxRanks || 1;
       }
 
@@ -241,7 +248,6 @@ var TalentDecoder = (function () {
         choiceIndex: rn.isChoice ? rn.choiceIdx : 0
       };
 
-      // Determine which tree this node belongs to
       var treeType = info._treeType;
       if (treeType === 'class') {
         classSelections[nodeId] = sel;
@@ -256,10 +262,9 @@ var TalentDecoder = (function () {
       }
     }
 
-    // 7. Determine active hero subTreeId from selected hero nodes
+    // 7. Determine active hero subTreeId
     var selectedSubTreeId = null;
     if (selectedHeroNodeIds.length > 0) {
-      // Count how many selected nodes belong to each subTreeId
       var subTreeCounts = {};
       for (var sh = 0; sh < selectedHeroNodeIds.length; sh++) {
         var heroInfo = nodeLookup[selectedHeroNodeIds[sh]];
@@ -268,7 +273,6 @@ var TalentDecoder = (function () {
           subTreeCounts[stId] = (subTreeCounts[stId] || 0) + 1;
         }
       }
-      // Pick the subTreeId with the most selected nodes
       var bestCount = 0;
       var stKeys = Object.keys(subTreeCounts);
       for (var sc = 0; sc < stKeys.length; sc++) {
@@ -281,7 +285,6 @@ var TalentDecoder = (function () {
         '→ selected:', selectedSubTreeId);
     }
 
-    // Also check granted (free) hero nodes to detect subTree even with minimal builds
     if (selectedSubTreeId === null) {
       var heroNodes = treeData.heroNodes || [];
       for (var fn = 0; fn < heroNodes.length; fn++) {
@@ -299,7 +302,6 @@ var TalentDecoder = (function () {
       'hero:', heroPoints, 'total:', totalPoints);
     console.log('[Decoder] Selected hero subTreeId:', selectedSubTreeId);
 
-    // Build hero tree data
     var heroTreeData = null;
     if (selectedSubTreeId !== null) {
       var heroTreeNodes = (treeData.heroNodes || []).filter(function (nd) {
@@ -312,7 +314,6 @@ var TalentDecoder = (function () {
       };
     }
 
-    // Sort nodes for rendering (posY, posX)
     var classNodesSorted = sortNodes(treeData.classNodes || []);
     var specNodesSorted = sortNodes(treeData.specNodes || []);
     var heroNodesSorted = sortNodes(treeData.heroNodes || []);
@@ -349,7 +350,6 @@ var TalentDecoder = (function () {
     return nodes.length > 0 ? nodes[0].name : 'Hero';
   }
 
-  // Public API
   return {
     decode: decode,
     loadNodeOrder: loadNodeOrder,
