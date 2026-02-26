@@ -107,7 +107,7 @@ var TalentTreeRenderer = (function () {
     });
   }
 
-  function drawNode(svg, node, x, y, selections) {
+   function drawNode(svg, node, x, y, selections) {
     var nodeSel = selections[node.id];
     var isSelected = !!nodeSel;
 
@@ -160,16 +160,8 @@ var TalentTreeRenderer = (function () {
       defs.appendChild(clip);
       g.appendChild(defs);
 
-      if (iconName) {
-        var img = createSvgElement('image', {
-          href: getIconUrl(iconName),
-          x: 0, y: 0,
-          width: NODE_SIZE, height: NODE_SIZE,
-          'clip-path': 'url(#' + clipId + ')',
-          'class': 'node-icon'
-        });
-        g.appendChild(img);
-      }
+      addIconWithFallback(g, iconName, clipId, 0, 0, NODE_SIZE, NODE_SIZE);
+
     } else if (entry.type === 'active') {
       var rect = createSvgElement('rect', {
         x: 0, y: 0,
@@ -179,26 +171,18 @@ var TalentTreeRenderer = (function () {
       });
       g.appendChild(rect);
 
-      if (iconName) {
-        var rectClipId = 'clip-rect-' + node.id;
-        var rectDefs = createSvgElement('defs', {});
-        var rectClip = createSvgElement('clipPath', { id: rectClipId });
-        var rectClipRect = createSvgElement('rect', {
-          x: 0, y: 0, width: NODE_SIZE, height: NODE_SIZE, rx: 4, ry: 4
-        });
-        rectClip.appendChild(rectClipRect);
-        rectDefs.appendChild(rectClip);
-        g.appendChild(rectDefs);
+      var rectClipId = 'clip-rect-' + node.id;
+      var rectDefs = createSvgElement('defs', {});
+      var rectClip = createSvgElement('clipPath', { id: rectClipId });
+      var rectClipRect = createSvgElement('rect', {
+        x: 0, y: 0, width: NODE_SIZE, height: NODE_SIZE, rx: 4, ry: 4
+      });
+      rectClip.appendChild(rectClipRect);
+      rectDefs.appendChild(rectClip);
+      g.appendChild(rectDefs);
 
-        var rectImg = createSvgElement('image', {
-          href: getIconUrl(iconName),
-          x: 0, y: 0,
-          width: NODE_SIZE, height: NODE_SIZE,
-          'clip-path': 'url(#' + rectClipId + ')',
-          'class': 'node-icon'
-        });
-        g.appendChild(rectImg);
-      }
+      addIconWithFallback(g, iconName, rectClipId, 0, 0, NODE_SIZE, NODE_SIZE);
+
     } else {
       var circ = createSvgElement('circle', {
         cx: NODE_SIZE / 2,
@@ -208,26 +192,17 @@ var TalentTreeRenderer = (function () {
       });
       g.appendChild(circ);
 
-      if (iconName) {
-        var circClipId = 'clip-circ-' + node.id;
-        var circDefs = createSvgElement('defs', {});
-        var circClip = createSvgElement('clipPath', { id: circClipId });
-        var circClipCircle = createSvgElement('circle', {
-          cx: NODE_SIZE / 2, cy: NODE_SIZE / 2, r: NODE_SIZE / 2
-        });
-        circClip.appendChild(circClipCircle);
-        circDefs.appendChild(circClip);
-        g.appendChild(circDefs);
+      var circClipId = 'clip-circ-' + node.id;
+      var circDefs = createSvgElement('defs', {});
+      var circClip = createSvgElement('clipPath', { id: circClipId });
+      var circClipCircle = createSvgElement('circle', {
+        cx: NODE_SIZE / 2, cy: NODE_SIZE / 2, r: NODE_SIZE / 2
+      });
+      circClip.appendChild(circClipCircle);
+      circDefs.appendChild(circClip);
+      g.appendChild(circDefs);
 
-        var circImg = createSvgElement('image', {
-          href: getIconUrl(iconName),
-          x: 0, y: 0,
-          width: NODE_SIZE, height: NODE_SIZE,
-          'clip-path': 'url(#' + circClipId + ')',
-          'class': 'node-icon'
-        });
-        g.appendChild(circImg);
-      }
+      addIconWithFallback(g, iconName, circClipId, 0, 0, NODE_SIZE, NODE_SIZE);
     }
 
     if (node.maxRanks && node.maxRanks > 1) {
@@ -245,11 +220,43 @@ var TalentTreeRenderer = (function () {
     svg.appendChild(g);
   }
 
-  function getIconUrl(iconName) {
+   function getIconUrl(iconName) {
     if (!iconName) return '';
     var name = iconName.toLowerCase();
-    name = name.replace(/__/g, '_-');
     return WOWHEAD_ICON_BASE + name + '.jpg';
+  }
+
+  function getIconUrlFallback(iconName) {
+    if (!iconName) return '';
+    var name = iconName.toLowerCase();
+    // Try replacing underscores with hyphens in various positions
+    // Wowhead sometimes uses hyphens instead of underscores
+    name = name.replace(/_/g, '-');
+    return WOWHEAD_ICON_BASE + name + '.jpg';
+  }
+
+  function addIconWithFallback(g, iconName, clipPathId, x, y, w, h) {
+    if (!iconName) return;
+
+    var img = createSvgElement('image', {
+      href: getIconUrl(iconName),
+      x: x, y: y,
+      width: w, height: h,
+      'class': 'node-icon'
+    });
+    if (clipPathId) {
+      img.setAttribute('clip-path', 'url(#' + clipPathId + ')');
+    }
+
+    // On error: try fallback URL with hyphens
+    img.addEventListener('error', function () {
+      var fallback = getIconUrlFallback(iconName);
+      if (img.getAttribute('href') !== fallback) {
+        img.setAttribute('href', fallback);
+      }
+    });
+
+    g.appendChild(img);
   }
 
   function createSvgElement(tag, attrs) {
