@@ -165,12 +165,10 @@ var TalentDecoder = (function () {
     console.log('[Decoder] Class:', treeData.className, 'Spec:', treeData.specName,
       'Nodes in order:', nodeOrder.length);
 
-    // 4. Build lookup from ALL specs of same class (not just current spec)
-    //    Node order contains nodes for all specs of the class
+    // 4. Build lookup from ALL specs of same class
     var nodeLookup = {};
     var currentSpecNodeIds = {};
 
-    // First: add nodes from ALL specs of same class
     for (var si = 0; si < talentData.length; si++) {
       if (talentData[si].classId === classId) {
         var allTreeNodes = ['classNodes', 'specNodes', 'heroNodes'];
@@ -183,23 +181,36 @@ var TalentDecoder = (function () {
       }
     }
 
-    // Mark which nodes belong to current spec
-    var currentTreeTypes = ['classNodes', 'specNodes', 'heroNodes'];
-    for (var ct = 0; ct < currentTreeTypes.length; ct++) {
-      var cArr = treeData[currentTreeTypes[ct]] || [];
-      for (var cn = 0; cn < cArr.length; cn++) {
-        currentSpecNodeIds[cArr[cn].id] = true;
-      }
+    // 5. Build tree type maps from CURRENT SPEC ONLY
+    //    This prevents cross-spec _treeType contamination
+    var classNodeSet = {};
+    var specNodeSet = {};
+    var heroNodeSet = {};
+
+    var cClassNodes = treeData.classNodes || [];
+    for (var ci = 0; ci < cClassNodes.length; ci++) {
+      classNodeSet[cClassNodes[ci].id] = true;
+      currentSpecNodeIds[cClassNodes[ci].id] = true;
+    }
+    var cSpecNodes = treeData.specNodes || [];
+    for (var spi = 0; spi < cSpecNodes.length; spi++) {
+      specNodeSet[cSpecNodes[spi].id] = true;
+      currentSpecNodeIds[cSpecNodes[spi].id] = true;
+    }
+    var cHeroNodes = treeData.heroNodes || [];
+    for (var hi = 0; hi < cHeroNodes.length; hi++) {
+      heroNodeSet[cHeroNodes[hi].id] = true;
+      currentSpecNodeIds[cHeroNodes[hi].id] = true;
     }
 
     console.log('[Decoder] Full class lookup size:', Object.keys(nodeLookup).length,
       'Current spec nodes:', Object.keys(currentSpecNodeIds).length);
 
-    // 5. Read all node states from bitstream
+    // 6. Read all node states from bitstream
     var rawNodes = readAllNodes(reader, header.version);
     console.log('[Decoder] Raw nodes read:', rawNodes.length);
 
-    // 6. Map raw states to node IDs and build selections
+    // 7. Map raw states to node IDs and build selections
     var classSelections = {};
     var specSelections = {};
     var heroSelections = {};
@@ -222,7 +233,6 @@ var TalentDecoder = (function () {
 
       var info = nodeLookup[nodeId];
       if (!info) {
-        // Truly unknown node — skip
         console.warn('[Decoder] Unknown node ID:', nodeId, 'at index:', idx);
         continue;
       }
@@ -248,21 +258,21 @@ var TalentDecoder = (function () {
         choiceIndex: rn.isChoice ? rn.choiceIdx : 0
       };
 
-      var treeType = info._treeType;
-      if (treeType === 'class') {
+      // Determine tree type from CURRENT SPEC sets (not _treeType)
+      if (classNodeSet[nodeId]) {
         classSelections[nodeId] = sel;
         if (!info.freeNode && rn.isPurchased) classPoints += rank;
-      } else if (treeType === 'spec') {
+      } else if (specNodeSet[nodeId]) {
         specSelections[nodeId] = sel;
         if (!info.freeNode && rn.isPurchased) specPoints += rank;
-      } else if (treeType === 'hero') {
+      } else if (heroNodeSet[nodeId]) {
         heroSelections[nodeId] = sel;
         if (!info.freeNode && rn.isPurchased) heroPoints += rank;
         selectedHeroNodeIds.push(nodeId);
       }
     }
 
-    // 7. Determine active hero subTreeId
+    // 8. Determine active hero subTreeId
     var selectedSubTreeId = null;
     if (selectedHeroNodeIds.length > 0) {
       var subTreeCounts = {};
