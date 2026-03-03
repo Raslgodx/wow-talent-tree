@@ -327,8 +327,7 @@
   }
 
   function sendHeight() {
-    // Small delay to let browser finish layout
-    setTimeout(function () {
+    function doSend() {
       var body = document.body;
       var html = document.documentElement;
       var height = Math.max(
@@ -343,7 +342,11 @@
         height: height
       }, '*');
       console.log('[iframe] Sent height:', height);
-    }, 100);
+    }
+    // First pass: after initial layout
+    setTimeout(doSend, 100);
+    // Second pass: after icons and any deferred paints settle
+    setTimeout(doSend, 600);
   }
 
   function debounce(fn, delay) {
