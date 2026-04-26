@@ -9,23 +9,9 @@ var TalentDecoder = (function () {
   var nodeOrderData = null;
 
   function loadNodeOrder(callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'data/wowhead-node-order.json', true);
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200 || xhr.status === 0) {
-          try {
-            nodeOrderData = JSON.parse(xhr.responseText);
-            callback(null);
-          } catch (e) {
-            callback('Failed to parse wowhead-node-order.json: ' + e.message);
-          }
-        } else {
-          callback('Failed to load wowhead-node-order.json (HTTP ' + xhr.status + ')');
-        }
-      }
-    };
-    xhr.send();
+    // nodeOrderData is no longer needed since we use fullNodeOrder from talents.json
+    nodeOrderData = {};
+    setTimeout(function() { callback(null); }, 0);
   }
 
   function BitReader(exportString) {
@@ -147,19 +133,11 @@ var TalentDecoder = (function () {
       throw new Error('No talent data for specId ' + header.specId);
     }
 
-    // 3. Get node order for this class
+    // 3. Get node order for this class directly from talents.json
     var classId = treeData.classId;
-    var orderInfo = nodeOrderData[classId];
-    if (!orderInfo) {
-      throw new Error('No node order data for classId ' + classId);
-    }
-    var nodeOrder = orderInfo.nodes;
-    var heroTreeChoices = orderInfo.heroTreeChoices || {};
-
-    var heroChoiceNodeIds = {};
-    var heroChoiceKeys = Object.keys(heroTreeChoices);
-    for (var hc = 0; hc < heroChoiceKeys.length; hc++) {
-      heroChoiceNodeIds[parseInt(heroChoiceKeys[hc])] = true;
+    var nodeOrder = treeData.fullNodeOrder;
+    if (!nodeOrder) {
+      throw new Error('No fullNodeOrder found in talent data for classId ' + classId);
     }
 
     console.log('[Decoder] Class:', treeData.className, 'Spec:', treeData.specName,
@@ -225,11 +203,6 @@ var TalentDecoder = (function () {
       if (!rn.isSelected) continue;
 
       var nodeId = nodeOrder[idx];
-
-      // Skip hero tree choice nodes
-      if (heroChoiceNodeIds[nodeId]) {
-        continue;
-      }
 
       var info = nodeLookup[nodeId];
       if (!info) {
