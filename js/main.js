@@ -91,12 +91,13 @@
     for (var i = 0; i < modes.length; i++) {
       var val = params.get(modes[i]);
       if (val && val.trim().length > 0) {
-        return { mode: modes[i], str: val.trim() };
+        // URLSearchParams decodes '+' as a space, but talent strings use '+'
+        return { mode: modes[i], str: val.trim().replace(/ /g, '+') };
       }
     }
     var t = params.get('t') || params.get('talents') || '';
     if (t.trim().length > 0) {
-      return { mode: 'all', str: t.trim() };
+      return { mode: 'all', str: t.trim().replace(/ /g, '+') };
     }
     return null;
   }
@@ -327,7 +328,8 @@
   }
 
   function sendHeight() {
-    function doSend() {
+    // Small delay to let browser finish layout
+    setTimeout(function () {
       var body = document.body;
       var html = document.documentElement;
       var height = Math.max(
@@ -342,11 +344,7 @@
         height: height
       }, '*');
       console.log('[iframe] Sent height:', height);
-    }
-    // First pass: after initial layout
-    setTimeout(doSend, 100);
-    // Second pass: after icons and any deferred paints settle
-    setTimeout(doSend, 600);
+    }, 100);
   }
 
   function debounce(fn, delay) {
